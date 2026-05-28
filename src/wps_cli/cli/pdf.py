@@ -1,11 +1,12 @@
 """PDF CLI 命令"""
 
-from pathlib import Path
+from __future__ import annotations
 
 import typer
 
-from wps_cli.cli.common import do_output, handle_error, make_get_service
+from wps_cli.cli.common import handle_error, make_get_service, success
 from wps_cli.services.pdf_service import PdfService
+from wps_cli.utils.path_utils import ensure_safe_input_path, ensure_safe_output_path
 
 app = typer.Typer(help="PDF 文档操作")
 
@@ -18,11 +19,13 @@ def info(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """输出 PDF 元信息"""
+    cmd = "pdf.info"
     try:
-        result = _get_service().info(Path(file))
-        do_output(result, json_output)
+        path = ensure_safe_input_path(file)
+        result = _get_service().info(path)
+        success(result, command=cmd, json_mode=json_output)
     except Exception as e:
-        handle_error(e, json_output)
+        handle_error(e, command=cmd, json_mode=json_output)
 
 
 @app.command()
@@ -32,11 +35,18 @@ def merge(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """合并多个 PDF"""
+    cmd = "pdf.merge"
     try:
-        result = _get_service().merge([Path(f) for f in files], Path(output))
-        do_output({"success": True, "path": str(result), "merged": len(files)}, json_output)
+        paths = [ensure_safe_input_path(f) for f in files]
+        out_path = ensure_safe_output_path(output)
+        result = _get_service().merge(paths, out_path)
+        success(
+            {"path": str(result), "merged": len(paths)},
+            command=cmd,
+            json_mode=json_output,
+        )
     except Exception as e:
-        handle_error(e, json_output)
+        handle_error(e, command=cmd, json_mode=json_output)
 
 
 @app.command()
@@ -47,11 +57,18 @@ def extract_pages(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """提取指定页面"""
+    cmd = "pdf.extract_pages"
     try:
-        result = _get_service().extract_pages(Path(file), pages, Path(output))
-        do_output({"success": True, "path": str(result), "pages": pages}, json_output)
+        path = ensure_safe_input_path(file)
+        out_path = ensure_safe_output_path(output)
+        result = _get_service().extract_pages(path, pages, out_path)
+        success(
+            {"path": str(result), "pages": pages},
+            command=cmd,
+            json_mode=json_output,
+        )
     except Exception as e:
-        handle_error(e, json_output)
+        handle_error(e, command=cmd, json_mode=json_output)
 
 
 @app.command()
@@ -62,11 +79,19 @@ def split(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """按每 N 页拆分"""
+    cmd = "pdf.split"
     try:
-        results = _get_service().split(Path(file), every, Path(output_dir))
-        do_output({"success": True, "parts": len(results), "files": [str(r) for r in results]}, json_output)
+        path = ensure_safe_input_path(file)
+        out_dir = ensure_safe_output_path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        results = _get_service().split(path, every, out_dir)
+        success(
+            {"parts": len(results), "files": [str(r) for r in results]},
+            command=cmd,
+            json_mode=json_output,
+        )
     except Exception as e:
-        handle_error(e, json_output)
+        handle_error(e, command=cmd, json_mode=json_output)
 
 
 @app.command()
@@ -77,8 +102,11 @@ def watermark(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """添加文字水印"""
+    cmd = "pdf.watermark"
     try:
-        result = _get_service().watermark(Path(file), text, Path(output))
-        do_output({"success": True, "path": str(result)}, json_output)
+        path = ensure_safe_input_path(file)
+        out_path = ensure_safe_output_path(output)
+        result = _get_service().watermark(path, text, out_path)
+        success({"path": str(result)}, command=cmd, json_mode=json_output)
     except Exception as e:
-        handle_error(e, json_output)
+        handle_error(e, command=cmd, json_mode=json_output)

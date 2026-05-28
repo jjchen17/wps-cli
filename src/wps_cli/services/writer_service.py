@@ -1,6 +1,7 @@
 """Writer 文档操作业务逻辑"""
 
-import re
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,7 @@ from wps_cli.consts import (
     WD_STATISTIC_WORDS,
     WD_STORY,
 )
-from wps_cli.services.session_manager import SessionManager
+from wps_cli.services.session_manager import Session, SessionManager
 
 
 @dataclass
@@ -29,6 +30,20 @@ class WriterService:
     """Word 文档操作"""
 
     manager: SessionManager
+
+    @staticmethod
+    def _open_doc(app: Any, path: Path | str, *, readonly: bool = False) -> Any:
+        """统一的 Documents.Open 入口
+
+        ``ConfirmConversions=False`` + ``AddToRecentFiles=False`` 减少弹窗，
+        宏自动执行已在 ``ComBackend.harden`` 中通过 ``AutomationSecurity`` 全局禁用。
+        """
+        return app.Documents.Open(
+            str(path),
+            ConfirmConversions=False,
+            ReadOnly=readonly,
+            AddToRecentFiles=False,
+        )
 
     # ── 文档生命周期 ──
 
@@ -41,14 +56,18 @@ class WriterService:
             doc.Close(WD_DO_NOT_SAVE_CHANGES)
         return Path(path)
 
-    def open(self, path: Path, readonly: bool = False) -> Any:
+    def open_document(self, path: Path, readonly: bool = False) -> Session:
+        """打开文档并返回会话；命名避免遮蔽内置 ``open``"""
         session = self.manager.start("writer")
         try:
-            session.app.Documents.Open(str(path), ReadOnly=readonly)
+            self._open_doc(session.app, path, readonly=readonly)
             return session
         except Exception:
             self.manager.stop(session.session_id)
             raise
+
+    # 兼容别名
+    open = open_document
 
     def save(self, app: Any, path: Path | None = None) -> Path:
         doc = app.ActiveDocument
@@ -66,7 +85,7 @@ class WriterService:
 
     def info(self, path: Path) -> dict:
         with self.manager.session("writer") as app:
-            doc = app.Documents.Open(str(path))
+            doc = self._open_doc(app, path, readonly=True)
             result = {
                 "path": str(Path(doc.FullName)),
                 "pages": doc.ComputeStatistics(WD_STATISTIC_PAGES),
@@ -91,27 +110,30 @@ class WriterService:
     def text_replace(
         self, app: Any, old: str, new: str, wildcard: bool = False, case: bool = False
     ) -> int:
-        """查找替换文本
+        """查找替换文本，返回替换次数
 
         Args:
             wildcard: 启用 WPS 通配符模式（* 任意字符, ? 单字符, [abc] 字符集）
         """
-        # 先计数
-        rng = app.ActiveDocument.Content
-        rng.Find.Text = old
-        rng.Find.MatchCase = case
-        rng.Find.MatchWildcards = wildcard
-        count = 0
-        while rng.Find.Execute():
-            count += 1
-        # 再替换
-        find = app.ActiveDocument.Content.Find
+        doc = app.ActiveDocument
+        before = doc.Range().Text.count(old) if not wildcard else None
+
+        find = doc.Content.Find
+        find.ClearFormatting()
+        find.Replacement.ClearFormatting()
         find.Text = old
         find.Replacement.Text = new
         find.MatchCase = case
         find.MatchWildcards = wildcard
+        find.Forward = True
+        find.Wrap = 1  # wdFindContinue
         find.Execute(Replace=WD_REPLACE_ALL)
-        return count
+
+        if before is not None:
+            after = doc.Range().Text.count(old)
+            return max(0, before - after)
+        # 通配符模式无法精确还原，返回 -1 表示未知
+        return -1
 
     def text_get(self, app: Any, start: int = 0, end: int = -1) -> str:
         doc = app.ActiveDocument
@@ -144,7 +166,12 @@ class WriterService:
         line_spacing: float | None = None,
     ) -> None:
         pf = app.Selection.ParagraphFormat
-        align_map = {"left": ALIGN_LEFT, "center": ALIGN_CENTER, "right": ALIGN_RIGHT, "justify": ALIGN_JUSTIFY}
+        align_map = {
+            "left": ALIGN_LEFT,
+            "center": ALIGN_CENTER,
+            "right": ALIGN_RIGHT,
+            "justify": ALIGN_JUSTIFY,
+        }
         if align is not None:
             pf.Alignment = align_map.get(align, ALIGN_LEFT)
         if indent_left is not None:
@@ -210,19 +237,19 @@ class WriterService:
         margin_right: float | None = None,
     ) -> None:
         page = app.ActiveDocument.PageSetup
-        MM_TO_PT = 2.835
+        mm_to_pt = 2.835
         if width_mm is not None:
-            page.PageWidth = width_mm * MM_TO_PT
+            page.PageWidth = width_mm * mm_to_pt
         if height_mm is not None:
-            page.PageHeight = height_mm * MM_TO_PT
+            page.PageHeight = height_mm * mm_to_pt
         if margin_top is not None:
-            page.TopMargin = margin_top * MM_TO_PT
+            page.TopMargin = margin_top * mm_to_pt
         if margin_bottom is not None:
-            page.BottomMargin = margin_bottom * MM_TO_PT
+            page.BottomMargin = margin_bottom * mm_to_pt
         if margin_left is not None:
-            page.LeftMargin = margin_left * MM_TO_PT
+            page.LeftMargin = margin_left * mm_to_pt
         if margin_right is not None:
-            page.RightMargin = margin_right * MM_TO_PT
+            page.RightMargin = margin_right * mm_to_pt
 
     def page_break(self, app: Any) -> None:
         app.Selection.InsertBreak(WD_PAGE_BREAK)

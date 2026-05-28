@@ -1,9 +1,5 @@
 """WPS COM 后端测试"""
 
-import pytest
-
-from tests.conftest import MockComBackend
-
 
 class TestMockBackend:
     """测试模拟后端"""

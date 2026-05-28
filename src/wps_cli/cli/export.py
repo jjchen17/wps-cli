@@ -1,11 +1,12 @@
 """导出 CLI 命令"""
 
-from pathlib import Path
+from __future__ import annotations
 
 import typer
 
-from wps_cli.cli.common import do_output, handle_error, make_get_service
+from wps_cli.cli.common import handle_error, make_get_service, success
 from wps_cli.services.export_service import ExportService
+from wps_cli.utils.path_utils import ensure_safe_input_path, ensure_safe_output_path
 
 app = typer.Typer(help="格式转换与导出")
 
@@ -15,30 +16,62 @@ _get_service = make_get_service(ExportService)
 @app.command()
 def convert(
     file: str = typer.Argument(..., help="源文件路径"),
-    format: str = typer.Argument(..., help="目标格式: docx/pdf/html/txt/csv/xlsx/pptx"),
+    target_format: str = typer.Argument(
+        ...,
+        metavar="FORMAT",
+        help="目标格式: docx/pdf/html/txt/csv/xlsx/pptx",
+    ),
     output: str = typer.Option("", "--output", "-o", help="输出路径"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """格式转换"""
+    cmd = "export.convert"
     try:
-        result = _get_service().convert(Path(file), format, Path(output) if output else None)
-        do_output({"success": True, "path": str(result)}, json_output)
+        path = ensure_safe_input_path(file)
+        out_path = ensure_safe_output_path(output) if output else None
+        result = _get_service().convert(path, target_format, out_path)
+        success(
+            {"path": str(result), "format": target_format},
+            command=cmd,
+            json_mode=json_output,
+        )
     except Exception as e:
-        handle_error(e, json_output)
+        handle_error(e, command=cmd, json_mode=json_output)
 
 
 @app.command()
 def batch(
-    glob_pattern: str = typer.Argument(..., help="文件模式，如 *.docx"),
-    format: str = typer.Option(..., "--to", "-t", help="目标格式"),
+    glob_pattern: str = typer.Argument(
+        ..., help="文件模式（相对路径），如 *.docx 或 docs/**/*.docx"
+    ),
+    target_format: str = typer.Option(
+        ...,
+        "--to",
+        "-t",
+        help="目标格式",
+    ),
     output_dir: str = typer.Option(..., "--output-dir", "-d", help="输出目录"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
-    """批量格式转换"""
+    """批量格式转换
+
+    glob 模式不允许使用绝对路径或 UNC 路径，匹配结果必须位于当前工作目录之下。
+    """
+    cmd = "export.batch"
     try:
-        results = _get_service().batch_convert(glob_pattern, format, Path(output_dir))
-        success = sum(1 for r in results if r["status"] == "ok")
-        failed = sum(1 for r in results if r["status"] == "failed")
-        do_output({"success": failed == 0, "total": len(results), "success_count": success, "failed_count": failed, "results": results}, json_output)
+        out_dir = ensure_safe_output_path(output_dir)
+        results = _get_service().batch_convert(glob_pattern, target_format, out_dir)
+        success_n = sum(1 for r in results if r["status"] == "ok")
+        failed_n = sum(1 for r in results if r["status"] == "failed")
+        success(
+            {
+                "total": len(results),
+                "success_count": success_n,
+                "failed_count": failed_n,
+                "results": results,
+            },
+            command=cmd,
+            json_mode=json_output,
+        )
     except Exception as e:
-        handle_error(e, json_output)
+        handle_error(e, command=cmd, json_mode=json_output)

@@ -110,3 +110,26 @@ IMPRESS_FORMATS: dict[str, int] = {
 
 # PowerPoint 切换效果
 PP_TRANSITION_RANDOM = 3844
+
+# ── MsoAutomationSecurity ──────────────────────────────────────
+# 用于禁用宏自动执行，防止打开恶意文档时触发宏代码
+MSO_AUTOMATION_SECURITY_LOW = 1
+MSO_AUTOMATION_SECURITY_BY_UI = 2
+MSO_AUTOMATION_SECURITY_FORCE_DISABLE = 3
+
+# ── 安全限制 ────────────────────────────────────────────────────
+# 公式中禁止出现的危险函数（COM 注入防护）
+DANGEROUS_FORMULA_TOKENS: tuple[str, ...] = (
+    "SHELL(",
+    "DDE(",
+    "DDEAUTO(",
+    "EXEC(",
+    "CALL(",
+    "REGISTER(",
+    "EXECUTE(",
+    "HYPERLINK(",
+)
+
+# PDF 页码解析的硬上限，防止 "1-999999" 内存炸弹
+MAX_PDF_PAGE_NUMBER = 9999
+MAX_PDF_PAGE_RANGE_SIZE = 1000

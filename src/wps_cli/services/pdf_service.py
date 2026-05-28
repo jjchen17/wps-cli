@@ -1,9 +1,13 @@
 """PDF 处理业务逻辑"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 
 from wps_cli.consts import (
+    MAX_PDF_PAGE_NUMBER,
+    MAX_PDF_PAGE_RANGE_SIZE,
     MSO_TEXT_EFFECT_1,
     WD_DO_NOT_SAVE_CHANGES,
     WD_FORMAT_PDF,
@@ -12,6 +16,7 @@ from wps_cli.consts import (
     WD_STATISTIC_PAGES,
     WD_STORY,
 )
+from wps_cli.exceptions import ValidationError
 from wps_cli.services.session_manager import SessionManager
 
 
@@ -23,8 +28,7 @@ class PdfService:
 
     def info(self, path: Path) -> dict:
         """获取 PDF 元信息"""
-        import os
-        stat = os.stat(path)
+        stat = path.stat()
         return {
             "path": str(path),
             "size_bytes": stat.st_size,
@@ -35,11 +39,14 @@ class PdfService:
     def merge(self, inputs: list[Path], output: Path) -> Path:
         """合并多个 PDF（通过 Writer 打开再导出）"""
         if not inputs:
-            raise ValueError("至少需要一个输入文件")
+            raise ValidationError("至少需要一个输入文件")
         with self.manager.session("writer") as app:
-            # 打开第一个文档
-            doc = app.Documents.Open(str(inputs[0]))
-            # 插入后续文档
+            doc = app.Documents.Open(
+                str(inputs[0]),
+                ConfirmConversions=False,
+                ReadOnly=False,
+                AddToRecentFiles=False,
+            )
             for p in inputs[1:]:
                 sel = app.Selection
                 sel.EndKey(WD_STORY)
@@ -52,7 +59,12 @@ class PdfService:
         """提取指定页面（pages 格式: "1-3,5,7-9"）"""
         page_list = self._parse_pages(pages)
         with self.manager.session("writer") as app:
-            doc = app.Documents.Open(str(input_path))
+            doc = app.Documents.Open(
+                str(input_path),
+                ConfirmConversions=False,
+                ReadOnly=False,
+                AddToRecentFiles=False,
+            )
             total = doc.ComputeStatistics(WD_STATISTIC_PAGES)
             pages_to_delete = sorted(
                 [p for p in range(1, total + 1) if p not in page_list], reverse=True
@@ -75,9 +87,16 @@ class PdfService:
 
     def split(self, input_path: Path, every: int, output_dir: Path) -> list[Path]:
         """按每 N 页拆分"""
+        if every <= 0:
+            raise ValidationError("拆分粒度必须为正整数")
         output_dir.mkdir(parents=True, exist_ok=True)
         with self.manager.session("writer") as app:
-            doc = app.Documents.Open(str(input_path))
+            doc = app.Documents.Open(
+                str(input_path),
+                ConfirmConversions=False,
+                ReadOnly=True,
+                AddToRecentFiles=False,
+            )
             total = doc.ComputeStatistics(WD_STATISTIC_PAGES)
             results = []
             for start in range(1, total + 1, every):
@@ -104,8 +123,15 @@ class PdfService:
 
     def watermark(self, input_path: Path, text: str, output: Path) -> Path:
         """添加文字水印"""
+        if len(text) > 100:
+            raise ValidationError("水印文字过长（最多 100 字符）")
         with self.manager.session("writer") as app:
-            doc = app.Documents.Open(str(input_path))
+            doc = app.Documents.Open(
+                str(input_path),
+                ConfirmConversions=False,
+                ReadOnly=False,
+                AddToRecentFiles=False,
+            )
             for section in doc.Sections:
                 header = section.Headers(WD_HEADER_FOOTER_PRIMARY)
                 shape = header.Shapes.AddTextEffect(
@@ -120,16 +146,46 @@ class PdfService:
 
     @staticmethod
     def _parse_pages(pages: str) -> list[int]:
-        """解析页码字符串: "1-3,5,7-9" -> [1,2,3,5,7,8,9]"""
-        result = []
+        """解析页码字符串: "1-3,5,7-9" -> [1,2,3,5,7,8,9]
+
+        - 单个页码上限 :data:`MAX_PDF_PAGE_NUMBER`
+        - 单个区间跨度上限 :data:`MAX_PDF_PAGE_RANGE_SIZE`
+        - 总页码数上限 :data:`MAX_PDF_PAGE_RANGE_SIZE`
+
+        防止 ``"1-999999"`` 这种内存炸弹。
+        """
+        if not pages or not pages.strip():
+            raise ValidationError("页码字符串不能为空")
+        result: list[int] = []
         for part in pages.split(","):
             part = part.strip()
+            if not part:
+                continue
             if "-" in part:
                 start_s, end_s = part.split("-", 1)
-                start, end = int(start_s), int(end_s)
+                try:
+                    start, end = int(start_s), int(end_s)
+                except ValueError as exc:
+                    raise ValidationError(f"页码格式无效: {part!r}") from exc
+                if start < 1:
+                    raise ValidationError(f"页码必须从 1 开始: {part}")
                 if start > end:
-                    raise ValueError(f"页码范围无效: {start}-{end}（起始页不能大于结束页）")
+                    raise ValidationError(f"页码范围无效: {start}-{end}（起始页不能大于结束页）")
+                if end > MAX_PDF_PAGE_NUMBER:
+                    raise ValidationError(f"页码超出上限 {MAX_PDF_PAGE_NUMBER}: {end}")
+                if (end - start + 1) > MAX_PDF_PAGE_RANGE_SIZE:
+                    raise ValidationError(
+                        f"页码区间跨度超出 {MAX_PDF_PAGE_RANGE_SIZE}: {start}-{end}"
+                    )
                 result.extend(range(start, end + 1))
             else:
-                result.append(int(part))
+                try:
+                    n = int(part)
+                except ValueError as exc:
+                    raise ValidationError(f"页码格式无效: {part!r}") from exc
+                if n < 1 or n > MAX_PDF_PAGE_NUMBER:
+                    raise ValidationError(f"页码超出范围 [1, {MAX_PDF_PAGE_NUMBER}]: {n}")
+                result.append(n)
+        if len(result) > MAX_PDF_PAGE_RANGE_SIZE:
+            raise ValidationError(f"页码总数超出上限 {MAX_PDF_PAGE_RANGE_SIZE}")
         return sorted(set(result))

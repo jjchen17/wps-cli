@@ -84,7 +84,12 @@ class StyleEngine:
             sel.Font.Bold = preset["bold"]
 
         pf = sel.ParagraphFormat
-        align_map = {"left": ALIGN_LEFT, "center": ALIGN_CENTER, "right": ALIGN_RIGHT, "justify": ALIGN_JUSTIFY}
+        align_map = {
+            "left": ALIGN_LEFT,
+            "center": ALIGN_CENTER,
+            "right": ALIGN_RIGHT,
+            "justify": ALIGN_JUSTIFY,
+        }
         if "align" in preset:
             pf.Alignment = align_map.get(preset["align"], ALIGN_LEFT)
         if "first_indent" in preset:

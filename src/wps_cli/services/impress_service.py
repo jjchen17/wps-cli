@@ -5,10 +5,6 @@ from pathlib import Path
 from typing import Any
 
 from wps_cli.consts import (
-    ALIGN_CENTER,
-    ALIGN_JUSTIFY,
-    ALIGN_LEFT,
-    ALIGN_RIGHT,
     MSO_TEXT_ORIENTATION_HORIZONTAL,
     PP_PLACEHOLDER_BODY,
     PP_PLACEHOLDER_SUBTITLE,
@@ -38,7 +34,7 @@ class ImpressService:
 
     def info(self, path: Path) -> dict:
         with self.manager.session("impress") as app:
-            pres = app.Presentations.Open(str(path))
+            pres = app.Presentations.Open(str(path), ReadOnly=True)
             result = {
                 "path": str(Path(pres.FullName)),
                 "slides": pres.Slides.Count,
@@ -61,20 +57,28 @@ class ImpressService:
                     if shape.HasTextFrame and shape.PlaceholderFormat.Type == PP_PLACEHOLDER_TITLE:
                         title = shape.TextFrame.TextRange.Text[:50]
                         break
+                except AttributeError:
+                    # 非占位符形状没有 PlaceholderFormat，跳过
+                    continue
                 except Exception:
+                    # COM 调用偶发失败，跳过单个 shape，整体流程继续
                     continue
             has_notes = False
             try:
-                notes_text = sl.NotesPage.Shapes.Placeholders(PP_PLACEHOLDER_BODY).TextFrame.TextRange.Text
+                notes_text = sl.NotesPage.Shapes.Placeholders(
+                    PP_PLACEHOLDER_BODY
+                ).TextFrame.TextRange.Text
                 has_notes = bool(notes_text.strip())
-            except Exception:
+            except (AttributeError, Exception):
                 pass
-            slides.append({
-                "index": i,
-                "title": title,
-                "layout": sl.Layout,
-                "has_notes": has_notes,
-            })
+            slides.append(
+                {
+                    "index": i,
+                    "title": title,
+                    "layout": sl.Layout,
+                    "has_notes": has_notes,
+                }
+            )
         return slides
 
     def slide_add(self, app: Any, layout: int = 1, at: int | None = None, title: str = "") -> int:
@@ -106,7 +110,11 @@ class ImpressService:
     def text_set(self, app: Any, slide_idx: int, placeholder: str, text: str) -> None:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
-        ph_map = {"title": PP_PLACEHOLDER_TITLE, "body": PP_PLACEHOLDER_BODY, "subtitle": PP_PLACEHOLDER_SUBTITLE}
+        ph_map = {
+            "title": PP_PLACEHOLDER_TITLE,
+            "body": PP_PLACEHOLDER_BODY,
+            "subtitle": PP_PLACEHOLDER_SUBTITLE,
+        }
         ph_type = ph_map.get(placeholder, PP_PLACEHOLDER_TITLE)
         for shape in sl.Shapes:
             if shape.HasTextFrame and shape.PlaceholderFormat.Type == ph_type:
@@ -123,8 +131,14 @@ class ImpressService:
         return "\n".join(texts)
 
     def textbox_add(
-        self, app: Any, slide_idx: int, text: str,
-        left: float = 100, top: float = 100, width: float = 400, height: float = 100,
+        self,
+        app: Any,
+        slide_idx: int,
+        text: str,
+        left: float = 100,
+        top: float = 100,
+        width: float = 400,
+        height: float = 100,
     ) -> None:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
@@ -132,8 +146,14 @@ class ImpressService:
         shape.TextFrame.TextRange.Text = text
 
     def image_insert(
-        self, app: Any, slide_idx: int, path: Path,
-        left: float = 100, top: float = 100, width: float | None = None, height: float | None = None,
+        self,
+        app: Any,
+        slide_idx: int,
+        path: Path,
+        left: float = 100,
+        top: float = 100,
+        width: float | None = None,
+        height: float | None = None,
     ) -> None:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
@@ -155,7 +175,9 @@ class ImpressService:
 
     # ── 切换效果 ──
 
-    def transition_set(self, app: Any, slide_idx: int, effect: int = PP_TRANSITION_RANDOM, duration: float = 1.0) -> None:
+    def transition_set(
+        self, app: Any, slide_idx: int, effect: int = PP_TRANSITION_RANDOM, duration: float = 1.0
+    ) -> None:
         """设置幻灯片切换效果。effect 为 WPS 常量 ID"""
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
