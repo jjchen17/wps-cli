@@ -10,6 +10,8 @@
 
 > **不是"所见即所猜"，是所见即所得。** 不模拟文件格式，直接驱动真实的 WPS 引擎。
 
+> **Disclaimer / 免责声明**：wps-cli 是社区维护的非官方项目，与金山办公（Kingsoft Office）**没有任何隶属、授权或赞助关系**。"WPS"、"WPS Office" 是其各自所有者的商标。本项目通过调用本地已安装的 WPS Office COM 自动化接口工作，不分发、不修改、不打包 WPS 二进制。
+
 [English](README.en.md) · [更新日志](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md)
 
 ---

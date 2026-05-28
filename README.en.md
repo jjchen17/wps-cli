@@ -10,6 +10,8 @@ Drive WPS Office from the terminal — real formatting, real layout, 36 commands
 
 > Not "guess what you see" — **what you see is what you get**. Don't simulate the file format, just drive the actual WPS engine.
 
+> **Disclaimer**: wps-cli is an unofficial, community-driven project. It is **not affiliated with, endorsed by, or sponsored by** Kingsoft Office Software. "WPS" and "WPS Office" are trademarks of their respective owners. This project drives a locally-installed WPS Office via its COM automation interface; it does not bundle, redistribute, or modify any WPS Office binaries.
+
 [中文](README.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
 ---

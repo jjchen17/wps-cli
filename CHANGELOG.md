@@ -4,7 +4,34 @@
 
 ## [Unreleased]
 
-### Added — 安全加固
+### Added — 第二轮安全加固
+- 文件扩展名白名单：所有 CLI 命令按应用类型（writer/calc/impress/pdf）拒绝不匹配的扩展名，防止 `wps calc cell-set README.md ...` 这类把任意文件作为工作簿覆盖的攻击。
+- 危险公式黑名单补全：增加 `WEBSERVICE` / `FILTERXML` / `RTD` / `IMPORTDATA` / `IMPORTHTML` / `IMPORTRANGE` / `IMPORTXML` / `IMPORTFEED` / `ENCODEURL` 与对应的 `_xlfn.` 兼容前缀。
+- 通配符替换反向引用防护：`writer replace --wildcard` 拒绝 `\1`-`\9` 反向引用（防止内容指数级膨胀），并对查找/替换文本加 1000 字符长度上限。
+- glob 数量上限：`export batch` 的匹配结果数量不超过 200（可配），防止 `**` 触发大量 COM 操作（DoS）。
+- glob 模式拒绝 `..`：前置拦截，不再依赖 resolve 后的最终防线。
+- 路径脱敏增强：`redact_path` 现在覆盖 UNC 路径（`<unc-path>`）和相对路径（`<rel-path>`）。
+
+### Added — 反馈闭环
+- `wps doctor --report` 输出脱敏的 markdown 环境报告，可直接粘贴到 GitHub Issue。报告不包含文件路径、用户名、机器名等。
+- Issue 模板改为 GitHub Issue Forms（`bug_report.yml`），强制必填诊断报告字段。
+
+### Added — 项目元数据
+- README 顶部加入非官方项目免责声明（中英双版）。
+- 依赖更新自动化：`.github/dependabot.yml` 启用 GitHub Actions 与 pip 依赖每周巡检。
+
+### Changed
+- CI 主测试矩阵从 `windows-latest` 切换到 `ubuntu-latest`（Mock 已完整覆盖），保留一个 `windows-latest` smoke job 验证 pywin32 与 entry point。
+- CI 增加 `concurrency.cancel-in-progress` 与 pip cache。
+- CI build 步骤加 `twine check dist/*`，提前拦截 README 渲染问题。
+- 覆盖率门禁设为 45%（当前实测 47%，逐版本上调）。
+- `text_replace` 算法重写：原实现在 `new` 包含 `old` 时返回 0（如 `"foo"→"foobar"`），现在用 Find API `Execute(Replace=0)` 逐次扫描计数，结果精确。
+
+### Removed
+- 删除死代码 `src/wps_cli/utils/platform_check.py`（生产代码无人调用，0% 覆盖率）。
+- 删除 `WriterService.open = open_document` 兼容别名（无人使用且遮蔽内置 `open`）。
+
+## [Previous: 第一轮重构]
 - 后端层新增 `ComBackend.harden()`，所有连接到 WPS 的进程都会强制禁用宏自动执行（`AutomationSecurity = msoAutomationSecurityForceDisable`）并关闭 `DisplayAlerts`。
 - 公式注入防护：`calc cell-formula` 拒绝包含 `SHELL` / `DDE` / `DDEAUTO` / `EXEC` / `CALL` / `REGISTER` / `HYPERLINK` 等危险函数的公式。
 - 单元格值二次注入防护：`calc cell-set` 拒绝以 `=` 开头的值。
