@@ -1,9 +1,12 @@
 """WPS Office 全量 CLI 工具 — 主入口"""
 
+import sys
+
 import typer
 
 from wps_cli import __version__
 from wps_cli.cli import calc, export, impress, pdf, writer
+
 
 app = typer.Typer(
     name="wps",
@@ -23,12 +26,12 @@ app.add_typer(export.app, name="export", help="格式转换与导出")
 def version():
     """输出版本信息"""
     typer.echo(f"wps-cli {__version__}")
+    typer.echo(f"Python {sys.version}")
 
 
 @app.command()
 def doctor():
     """诊断环境"""
-    import sys
     typer.echo(f"Python: {sys.version}")
     typer.echo(f"平台: {sys.platform}")
 
@@ -37,14 +40,17 @@ def doctor():
         raise typer.Exit(1)
 
     try:
-        import win32com.client
+        import win32com.client  # noqa: F401
         typer.echo("pywin32: 已安装")
     except ImportError:
         typer.echo("错误: pywin32 未安装")
         raise typer.Exit(1)
 
-    # 检测 WPS
-    for name, prog_id in [("Writer", "KWPS.Application"), ("Calc", "KET.Application"), ("Impress", "KWPP.Application")]:
+    for name, prog_id in [
+        ("Writer", "KWPS.Application"),
+        ("Calc", "KET.Application"),
+        ("Impress", "KWPP.Application"),
+    ]:
         app = None
         try:
             app = win32com.client.Dispatch(prog_id)
