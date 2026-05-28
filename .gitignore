@@ -35,3 +35,6 @@ Thumbs.db
 *.bak
 out/
 output/
+
+# 本地营销/发布素材（不进公开仓库）
+docs/marketing/
