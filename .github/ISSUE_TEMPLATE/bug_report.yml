@@ -1,0 +1,58 @@
+name: Bug Report
+description: 报告一个 wps-cli 的问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢报告 bug。请尽量提供完整信息，便于复现和定位。
+
+  - type: textarea
+    id: doctor-report
+    attributes:
+      label: wps doctor --report 输出（必填）
+      description: |
+        在终端运行 `wps doctor --report` 并把全部输出粘贴到这里。
+        报告已自动脱敏，不包含文件路径与文件名。
+      render: markdown
+      placeholder: |
+        ### Environment Report
+        - wps-cli: ...
+        - Python: ...
+        - OS: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: 你执行的命令
+      description: 完整的命令行（敏感路径请用 `...` 替代）
+      placeholder: wps calc cell-set example.xlsx A1 hello
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为（含完整错误输出）
+      description: 如果是 `--json` 模式，请粘贴完整 JSON 错误响应
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 其他信息
+      description: 截图、相关 Issue、可疑文件特征等
+    validations:
+      required: false
