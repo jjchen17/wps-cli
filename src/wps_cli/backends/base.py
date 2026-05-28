@@ -1,6 +1,7 @@
 """COM 后端抽象基类"""
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class ComBackend(ABC):
@@ -17,13 +18,13 @@ class ComBackend(ABC):
         """
 
     @abstractmethod
-    def disconnect(self, app: object) -> None:
+    def disconnect(self, app: Any) -> None:
         """断开并关闭 WPS 应用实例"""
 
     @abstractmethod
-    def is_alive(self, app: object) -> bool:
+    def is_alive(self, app: Any) -> bool:
         """检查应用实例是否存活"""
 
     @abstractmethod
-    def get_version(self, app: object) -> str:
+    def get_version(self, app: Any) -> str:
         """获取 WPS 版本号"""

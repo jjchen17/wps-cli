@@ -1,24 +1,16 @@
 """Writer CLI 命令"""
 
+from pathlib import Path
+
 import typer
 
-from wps_cli.cli.common import do_output, handle_error
-from wps_cli.services.session_manager import SessionManager
+from wps_cli.cli.common import do_output, handle_error, make_get_service
+from wps_cli.services.style_engine import StyleEngine
 from wps_cli.services.writer_service import WriterService
 
 app = typer.Typer(help="Word 文档操作")
 
-_manager: SessionManager | None = None
-_service: WriterService | None = None
-
-
-def _get_service() -> WriterService:
-    global _manager, _service
-    if _service is None:
-        from wps_cli.backends.wps_com import WpsComBackend
-        _manager = SessionManager(backend=WpsComBackend())
-        _service = WriterService(manager=_manager)
-    return _service
+_get_service = make_get_service(WriterService)
 
 
 @app.command()
@@ -28,7 +20,6 @@ def new(
 ):
     """新建空白 Word 文档"""
     try:
-        from pathlib import Path
         result = _get_service().new(Path(output) if output else None)
         do_output({"success": True, "path": str(result)}, json_output)
     except Exception as e:
@@ -42,7 +33,6 @@ def info(
 ):
     """输出文档元信息"""
     try:
-        from pathlib import Path
         result = _get_service().info(Path(file))
         do_output(result, json_output)
     except Exception as e:
@@ -54,17 +44,16 @@ def replace(
     file: str = typer.Argument(..., help="文档路径"),
     old: str = typer.Argument(..., help="查找文本"),
     new_text: str = typer.Argument(..., help="替换文本"),
-    regex: bool = typer.Option(False, "--regex", help="正则模式"),
+    wildcard: bool = typer.Option(False, "--wildcard", "-w", help="通配符模式（* ? [abc]）"),
     case: bool = typer.Option(False, "--case", help="区分大小写"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """查找替换文本"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.open(Path(file))
         try:
-            count = svc.text_replace(session.app, old, new_text, regex, case)
+            count = svc.text_replace(session.app, old, new_text, wildcard, case)
             svc.save(session.app)
         finally:
             svc.manager.stop(session.session_id)
@@ -80,11 +69,12 @@ def count(
 ):
     """统计字数、段落、页数"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.open(Path(file))
-        result = svc.text_count(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            result = svc.text_count(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output(result, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -101,13 +91,14 @@ def table_insert(
     """插入表格"""
     try:
         import json as json_mod
-        from pathlib import Path
         svc = _get_service()
         session = svc.open(Path(file))
-        parsed = json_mod.loads(data) if data else None
-        idx = svc.table_insert(session.app, rows, cols, parsed)
-        svc.save(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            parsed = json_mod.loads(data) if data else None
+            idx = svc.table_insert(session.app, rows, cols, parsed)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True, "table_index": idx}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -121,11 +112,12 @@ def table_get(
 ):
     """读取表格数据"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.open(Path(file), readonly=True)
-        result = svc.table_get(session.app, index)
-        svc.manager.stop(session.session_id)
+        try:
+            result = svc.table_get(session.app, index)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True, "data": result}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -141,12 +133,13 @@ def image_insert(
 ):
     """插入图片"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.open(Path(file))
-        svc.image_insert(session.app, Path(image), width if width else None, height if height else None)
-        svc.save(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            svc.image_insert(session.app, Path(image), width if width != 0 else None, height if height != 0 else None)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -165,12 +158,13 @@ def page_setup(
 ):
     """设置页面布局"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.open(Path(file))
-        svc.page_setup(session.app, width, height, margin_top, margin_bottom, margin_left, margin_right)
-        svc.save(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            svc.page_setup(session.app, width, height, margin_top, margin_bottom, margin_left, margin_right)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -184,12 +178,38 @@ def export_pdf(
 ):
     """导出为 PDF"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.open(Path(file))
-        out_path = Path(output) if output else Path(file).with_suffix(".pdf")
-        svc.export_pdf(session.app, out_path)
-        svc.manager.stop(session.session_id)
+        try:
+            out_path = Path(output) if output else Path(file).with_suffix(".pdf")
+            svc.export_pdf(session.app, out_path)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True, "path": str(out_path)}, json_output)
+    except Exception as e:
+        handle_error(e, json_output)
+
+
+@app.command("style-apply")
+def style_apply(
+    file: str = typer.Argument(..., help="文档路径"),
+    preset: str = typer.Argument(..., help="样式预设名称"),
+    list_presets: bool = typer.Option(False, "--list", "-l", help="列出所有可用预设"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """应用预设样式到文档当前选区"""
+    engine = StyleEngine()
+    if list_presets:
+        do_output({"presets": engine.list_presets()}, json_output)
+        return
+    try:
+        svc = _get_service()
+        session = svc.open(Path(file))
+        try:
+            engine.apply_preset(session.app, preset)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        do_output({"success": True, "preset": preset}, json_output)
     except Exception as e:
         handle_error(e, json_output)

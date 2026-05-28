@@ -1,24 +1,15 @@
 """Impress CLI 命令"""
 
+from pathlib import Path
+
 import typer
 
-from wps_cli.cli.common import do_output, handle_error
+from wps_cli.cli.common import do_output, handle_error, make_get_service
 from wps_cli.services.impress_service import ImpressService
-from wps_cli.services.session_manager import SessionManager
 
 app = typer.Typer(help="PPT 演示文稿操作")
 
-_manager: SessionManager | None = None
-_service: ImpressService | None = None
-
-
-def _get_service() -> ImpressService:
-    global _manager, _service
-    if _service is None:
-        from wps_cli.backends.wps_com import WpsComBackend
-        _manager = SessionManager(backend=WpsComBackend())
-        _service = ImpressService(manager=_manager)
-    return _service
+_get_service = make_get_service(ImpressService)
 
 
 @app.command()
@@ -28,7 +19,6 @@ def new(
 ):
     """新建空白演示文稿"""
     try:
-        from pathlib import Path
         result = _get_service().new(Path(output) if output else None)
         do_output({"success": True, "path": str(result)}, json_output)
     except Exception as e:
@@ -42,7 +32,6 @@ def info(
 ):
     """输出演示文稿元信息"""
     try:
-        from pathlib import Path
         result = _get_service().info(Path(file))
         do_output(result, json_output)
     except Exception as e:
@@ -56,12 +45,13 @@ def slide_list(
 ):
     """列出所有幻灯片"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.manager.start("impress")
-        session.app.Presentations.Open(str(Path(file)))
-        result = svc.slide_list(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            session.app.Presentations.Open(str(Path(file)))
+            result = svc.slide_list(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output(result, json_output, headers=["index", "title", "layout"])
     except Exception as e:
         handle_error(e, json_output)
@@ -77,13 +67,14 @@ def slide_add(
 ):
     """新增幻灯片"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.manager.start("impress")
-        session.app.Presentations.Open(str(Path(file)))
-        idx = svc.slide_add(session.app, layout, at if at else None, title)
-        svc.save(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            session.app.Presentations.Open(str(Path(file)))
+            idx = svc.slide_add(session.app, layout, at if at else None, title)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True, "index": idx}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -97,13 +88,14 @@ def slide_delete(
 ):
     """删除幻灯片"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.manager.start("impress")
-        session.app.Presentations.Open(str(Path(file)))
-        svc.slide_delete(session.app, index)
-        svc.save(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            session.app.Presentations.Open(str(Path(file)))
+            svc.slide_delete(session.app, index)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -119,13 +111,14 @@ def text_set(
 ):
     """设置幻灯片文本"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.manager.start("impress")
-        session.app.Presentations.Open(str(Path(file)))
-        svc.text_set(session.app, slide, placeholder, text)
-        svc.save(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            session.app.Presentations.Open(str(Path(file)))
+            svc.text_set(session.app, slide, placeholder, text)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -139,12 +132,13 @@ def text_get(
 ):
     """提取幻灯片文本"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.manager.start("impress")
-        session.app.Presentations.Open(str(Path(file)))
-        result = svc.text_get(session.app, slide)
-        svc.manager.stop(session.session_id)
+        try:
+            session.app.Presentations.Open(str(Path(file)))
+            result = svc.text_get(session.app, slide)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"slide": slide, "text": result}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -161,13 +155,14 @@ def image_insert(
 ):
     """插入图片"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.manager.start("impress")
-        session.app.Presentations.Open(str(Path(file)))
-        svc.image_insert(session.app, slide, Path(image), left, top)
-        svc.save(session.app)
-        svc.manager.stop(session.session_id)
+        try:
+            session.app.Presentations.Open(str(Path(file)))
+            svc.image_insert(session.app, slide, Path(image), left, top)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True}, json_output)
     except Exception as e:
         handle_error(e, json_output)
@@ -181,13 +176,14 @@ def export_pdf(
 ):
     """导出为 PDF"""
     try:
-        from pathlib import Path
         svc = _get_service()
         session = svc.manager.start("impress")
-        session.app.Presentations.Open(str(Path(file)))
-        out_path = Path(output) if output else Path(file).with_suffix(".pdf")
-        svc.export_pdf(session.app, out_path)
-        svc.manager.stop(session.session_id)
+        try:
+            session.app.Presentations.Open(str(Path(file)))
+            out_path = Path(output) if output else Path(file).with_suffix(".pdf")
+            svc.export_pdf(session.app, out_path)
+        finally:
+            svc.manager.stop(session.session_id)
         do_output({"success": True, "path": str(out_path)}, json_output)
     except Exception as e:
         handle_error(e, json_output)

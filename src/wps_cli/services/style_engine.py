@@ -1,6 +1,15 @@
 """样式管理引擎"""
 
 from dataclasses import dataclass
+from typing import Any, ClassVar
+
+from wps_cli.consts import (
+    ALIGN_CENTER,
+    ALIGN_JUSTIFY,
+    ALIGN_LEFT,
+    ALIGN_RIGHT,
+    WD_LINE_SPACE_MULTIPLE,
+)
 
 
 @dataclass
@@ -8,7 +17,7 @@ class StyleEngine:
     """管理文档样式模板"""
 
     # 公文格式预设（GB/T 9704-2012）
-    PRESETS: dict[str, dict] = {
+    PRESETS: ClassVar[dict[str, dict]] = {
         "公文标题": {
             "font": "方正小标宋简体",
             "size": 22,
@@ -61,7 +70,7 @@ class StyleEngine:
         """列出所有可用预设"""
         return list(self.PRESETS.keys())
 
-    def apply_preset(self, app: object, preset_name: str) -> None:
+    def apply_preset(self, app: Any, preset_name: str) -> None:
         """将预设应用到当前选区"""
         preset = self.get_preset(preset_name)
         sel = app.Selection
@@ -75,11 +84,11 @@ class StyleEngine:
             sel.Font.Bold = preset["bold"]
 
         pf = sel.ParagraphFormat
-        align_map = {"left": 0, "center": 1, "right": 2, "justify": 3}
+        align_map = {"left": ALIGN_LEFT, "center": ALIGN_CENTER, "right": ALIGN_RIGHT, "justify": ALIGN_JUSTIFY}
         if "align" in preset:
-            pf.Alignment = align_map.get(preset["align"], 0)
+            pf.Alignment = align_map.get(preset["align"], ALIGN_LEFT)
         if "first_indent" in preset:
             pf.FirstLineIndent = preset["first_indent"]
         if "line_spacing" in preset:
-            pf.LineSpacingRule = 4
+            pf.LineSpacingRule = WD_LINE_SPACE_MULTIPLE
             pf.LineSpacing = preset["line_spacing"] * 12

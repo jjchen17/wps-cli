@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Generator
+from typing import Any, Generator
 
 from wps_cli.backends.base import ComBackend
 
@@ -13,7 +13,7 @@ class Session:
 
     session_id: str
     app_type: str
-    app: object
+    app: Any
     backend: ComBackend
 
 

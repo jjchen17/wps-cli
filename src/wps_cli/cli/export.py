@@ -1,24 +1,15 @@
 """导出 CLI 命令"""
 
+from pathlib import Path
+
 import typer
 
-from wps_cli.cli.common import do_output, handle_error
+from wps_cli.cli.common import do_output, handle_error, make_get_service
 from wps_cli.services.export_service import ExportService
-from wps_cli.services.session_manager import SessionManager
 
 app = typer.Typer(help="格式转换与导出")
 
-_manager: SessionManager | None = None
-_service: ExportService | None = None
-
-
-def _get_service() -> ExportService:
-    global _manager, _service
-    if _service is None:
-        from wps_cli.backends.wps_com import WpsComBackend
-        _manager = SessionManager(backend=WpsComBackend())
-        _service = ExportService(manager=_manager)
-    return _service
+_get_service = make_get_service(ExportService)
 
 
 @app.command()
@@ -30,7 +21,6 @@ def convert(
 ):
     """格式转换"""
     try:
-        from pathlib import Path
         result = _get_service().convert(Path(file), format, Path(output) if output else None)
         do_output({"success": True, "path": str(result)}, json_output)
     except Exception as e:
@@ -46,7 +36,6 @@ def batch(
 ):
     """批量格式转换"""
     try:
-        from pathlib import Path
         results = _get_service().batch_convert(glob_pattern, format, Path(output_dir))
         success = sum(1 for r in results if r["status"] == "ok")
         failed = sum(1 for r in results if r["status"] == "failed")

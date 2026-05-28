@@ -2,7 +2,19 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
+from wps_cli.consts import (
+    ALIGN_CENTER,
+    ALIGN_JUSTIFY,
+    ALIGN_LEFT,
+    ALIGN_RIGHT,
+    MSO_TEXT_ORIENTATION_HORIZONTAL,
+    PP_PLACEHOLDER_BODY,
+    PP_PLACEHOLDER_SUBTITLE,
+    PP_PLACEHOLDER_TITLE,
+    PP_SAVE_AS_PDF,
+)
 from wps_cli.services.session_manager import SessionManager
 
 
@@ -37,61 +49,70 @@ class ImpressService:
 
     # ── 幻灯片管理 ──
 
-    def slide_list(self, app: object) -> list[dict]:
+    def slide_list(self, app: Any) -> list[dict]:
         pres = app.ActivePresentation
         slides = []
         for i in range(1, pres.Slides.Count + 1):
             sl = pres.Slides(i)
             title = ""
             for shape in sl.Shapes:
-                if shape.HasTextFrame and shape.PlaceholderFormat.Type == 1:
-                    title = shape.TextFrame.TextRange.Text[:50]
-                    break
+                try:
+                    if shape.HasTextFrame and shape.PlaceholderFormat.Type == PP_PLACEHOLDER_TITLE:
+                        title = shape.TextFrame.TextRange.Text[:50]
+                        break
+                except Exception:
+                    continue
+            has_notes = False
+            try:
+                notes_text = sl.NotesPage.Shapes.Placeholders(PP_PLACEHOLDER_BODY).TextFrame.TextRange.Text
+                has_notes = bool(notes_text.strip())
+            except Exception:
+                pass
             slides.append({
                 "index": i,
                 "title": title,
                 "layout": sl.Layout,
-                "has_notes": bool(sl.NotesPage.Shapes.Placeholders(2).TextFrame.TextRange.Text.strip()),
+                "has_notes": has_notes,
             })
         return slides
 
-    def slide_add(self, app: object, layout: int = 1, at: int | None = None, title: str = "") -> int:
+    def slide_add(self, app: Any, layout: int = 1, at: int | None = None, title: str = "") -> int:
         pres = app.ActivePresentation
         idx = at if at else pres.Slides.Count + 1
         sl = pres.Slides.Add(idx, layout)
         if title:
             for shape in sl.Shapes:
-                if shape.HasTextFrame and shape.PlaceholderFormat.Type == 1:
+                if shape.HasTextFrame and shape.PlaceholderFormat.Type == PP_PLACEHOLDER_TITLE:
                     shape.TextFrame.TextRange.Text = title
                     break
         return idx
 
-    def slide_delete(self, app: object, index: int) -> None:
+    def slide_delete(self, app: Any, index: int) -> None:
         pres = app.ActivePresentation
         pres.Slides(index).Delete()
 
-    def slide_copy(self, app: object, src: int, dest: int) -> None:
+    def slide_copy(self, app: Any, src: int, dest: int) -> None:
         pres = app.ActivePresentation
         pres.Slides(src).Copy()
         pres.Slides.Paste(dest)
 
-    def slide_move(self, app: object, from_idx: int, to_idx: int) -> None:
+    def slide_move(self, app: Any, from_idx: int, to_idx: int) -> None:
         pres = app.ActivePresentation
         pres.Slides(from_idx).MoveTo(to_idx)
 
     # ── 内容操作 ──
 
-    def text_set(self, app: object, slide_idx: int, placeholder: str, text: str) -> None:
+    def text_set(self, app: Any, slide_idx: int, placeholder: str, text: str) -> None:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
-        ph_map = {"title": 1, "body": 2, "subtitle": 3}
-        ph_type = ph_map.get(placeholder, 1)
+        ph_map = {"title": PP_PLACEHOLDER_TITLE, "body": PP_PLACEHOLDER_BODY, "subtitle": PP_PLACEHOLDER_SUBTITLE}
+        ph_type = ph_map.get(placeholder, PP_PLACEHOLDER_TITLE)
         for shape in sl.Shapes:
             if shape.HasTextFrame and shape.PlaceholderFormat.Type == ph_type:
                 shape.TextFrame.TextRange.Text = text
                 break
 
-    def text_get(self, app: object, slide_idx: int) -> str:
+    def text_get(self, app: Any, slide_idx: int) -> str:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
         texts = []
@@ -101,16 +122,16 @@ class ImpressService:
         return "\n".join(texts)
 
     def textbox_add(
-        self, app: object, slide_idx: int, text: str,
+        self, app: Any, slide_idx: int, text: str,
         left: float = 100, top: float = 100, width: float = 400, height: float = 100,
     ) -> None:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
-        shape = sl.Shapes.AddTextbox(1, left, top, width, height)  # msoTextOrientationHorizontal
+        shape = sl.Shapes.AddTextbox(MSO_TEXT_ORIENTATION_HORIZONTAL, left, top, width, height)
         shape.TextFrame.TextRange.Text = text
 
     def image_insert(
-        self, app: object, slide_idx: int, path: Path,
+        self, app: Any, slide_idx: int, path: Path,
         left: float = 100, top: float = 100, width: float | None = None, height: float | None = None,
     ) -> None:
         pres = app.ActivePresentation
@@ -121,19 +142,19 @@ class ImpressService:
         if height:
             shape.Height = height
 
-    def notes_set(self, app: object, slide_idx: int, text: str) -> None:
+    def notes_set(self, app: Any, slide_idx: int, text: str) -> None:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
-        sl.NotesPage.Shapes.Placeholders(2).TextFrame.TextRange.Text = text
+        sl.NotesPage.Shapes.Placeholders(PP_PLACEHOLDER_BODY).TextFrame.TextRange.Text = text
 
-    def notes_get(self, app: object, slide_idx: int) -> str:
+    def notes_get(self, app: Any, slide_idx: int) -> str:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
-        return sl.NotesPage.Shapes.Placeholders(2).TextFrame.TextRange.Text
+        return sl.NotesPage.Shapes.Placeholders(PP_PLACEHOLDER_BODY).TextFrame.TextRange.Text
 
     # ── 切换效果 ──
 
-    def transition_set(self, app: object, slide_idx: int, effect: int = 3844, duration: float = 1.0) -> None:
+    def transition_set(self, app: Any, slide_idx: int, effect: int = 3844, duration: float = 1.0) -> None:
         """设置幻灯片切换效果。effect 为 WPS 常量 ID"""
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
@@ -142,7 +163,7 @@ class ImpressService:
 
     # ── 保存与导出 ──
 
-    def save(self, app: object, path: Path | None = None) -> Path:
+    def save(self, app: Any, path: Path | None = None) -> Path:
         pres = app.ActivePresentation
         if path:
             pres.SaveAs(str(path))
@@ -150,7 +171,7 @@ class ImpressService:
             pres.Save()
         return Path(pres.FullName)
 
-    def export_pdf(self, app: object, output: Path) -> Path:
+    def export_pdf(self, app: Any, output: Path) -> Path:
         pres = app.ActivePresentation
-        pres.SaveAs(str(output), 32)  # ppSaveAsPDF
+        pres.SaveAs(str(output), PP_SAVE_AS_PDF)
         return output

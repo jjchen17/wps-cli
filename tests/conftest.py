@@ -1,5 +1,7 @@
 """公共测试 fixtures"""
 
+from typing import Any
+
 import pytest
 
 
@@ -9,13 +11,13 @@ class MockComBackend:
     def connect(self, app_type: str) -> object:
         return MockApp(app_type)
 
-    def disconnect(self, app: object) -> None:
+    def disconnect(self, app: Any) -> None:
         pass
 
-    def is_alive(self, app: object) -> bool:
+    def is_alive(self, app: Any) -> bool:
         return True
 
-    def get_version(self, app: object) -> str:
+    def get_version(self, app: Any) -> str:
         return "12.0.0-test"
 
 

@@ -3,7 +3,24 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
+from wps_cli.consts import (
+    ALIGN_CENTER,
+    ALIGN_JUSTIFY,
+    ALIGN_LEFT,
+    ALIGN_RIGHT,
+    WD_DO_NOT_SAVE_CHANGES,
+    WD_FORMAT_PDF,
+    WD_LINE_SPACE_MULTIPLE,
+    WD_PAGE_BREAK,
+    WD_REPLACE_ALL,
+    WD_SAVE_CHANGES,
+    WD_STATISTIC_CHARACTERS,
+    WD_STATISTIC_PAGES,
+    WD_STATISTIC_WORDS,
+    WD_STORY,
+)
 from wps_cli.services.session_manager import SessionManager
 
 
@@ -21,7 +38,7 @@ class WriterService:
             if output:
                 doc.SaveAs(str(output))
             path = doc.FullName
-            doc.Close(0)  # wdDoNotSaveChanges
+            doc.Close(WD_DO_NOT_SAVE_CHANGES)
         return Path(path)
 
     def open(self, path: Path, readonly: bool = False) -> object:
@@ -30,7 +47,7 @@ class WriterService:
         app.Documents.Open(str(path), ReadOnly=readonly)
         return session
 
-    def save(self, app: object, path: Path | None = None) -> Path:
+    def save(self, app: Any, path: Path | None = None) -> Path:
         doc = app.ActiveDocument
         if path:
             doc.SaveAs(str(path))
@@ -38,44 +55,49 @@ class WriterService:
             doc.Save()
         return Path(doc.FullName)
 
-    def close(self, app: object, save: bool = False) -> None:
+    def close(self, app: Any, save: bool = False) -> None:
         doc = app.ActiveDocument
         if save:
             doc.Save()
-        doc.Close(0 if not save else -1)  # -1 = wdSaveChanges
+        doc.Close(WD_DO_NOT_SAVE_CHANGES if not save else WD_SAVE_CHANGES)
 
     def info(self, path: Path) -> dict:
         with self.manager.session("writer") as app:
             doc = app.Documents.Open(str(path))
             result = {
                 "path": str(Path(doc.FullName)),
-                "pages": doc.ComputeStatistics(2),  # wdStatisticPages
-                "words": doc.ComputeStatistics(0),  # wdStatisticWords
-                "characters": doc.ComputeStatistics(3),  # wdStatisticCharacters
+                "pages": doc.ComputeStatistics(WD_STATISTIC_PAGES),
+                "words": doc.ComputeStatistics(WD_STATISTIC_WORDS),
+                "characters": doc.ComputeStatistics(WD_STATISTIC_CHARACTERS),
                 "paragraphs": doc.Paragraphs.Count,
                 "author": doc.BuiltInDocumentProperties("Author").Value,
                 "created": str(doc.BuiltInDocumentProperties("Creation Date").Value),
                 "modified": str(doc.BuiltInDocumentProperties("Last Save Time").Value),
             }
-            doc.Close(0)
+            doc.Close(WD_DO_NOT_SAVE_CHANGES)
         return result
 
     # ── 文本操作 ──
 
-    def text_insert(self, app: object, text: str, position: str = "end") -> None:
+    def text_insert(self, app: Any, text: str, position: str = "end") -> None:
         sel = app.Selection
         if position == "end":
-            sel.EndKey(6)  # wdStory
+            sel.EndKey(WD_STORY)
         sel.TypeText(text)
 
     def text_replace(
-        self, app: object, old: str, new: str, regex: bool = False, case: bool = False
+        self, app: Any, old: str, new: str, wildcard: bool = False, case: bool = False
     ) -> int:
+        """查找替换文本
+
+        Args:
+            wildcard: 启用 WPS 通配符模式（* 任意字符, ? 单字符, [abc] 字符集）
+        """
         # 先计数
         rng = app.ActiveDocument.Content
         rng.Find.Text = old
         rng.Find.MatchCase = case
-        rng.Find.MatchWildcards = regex
+        rng.Find.MatchWildcards = wildcard
         count = 0
         while rng.Find.Execute():
             count += 1
@@ -84,27 +106,27 @@ class WriterService:
         find.Text = old
         find.Replacement.Text = new
         find.MatchCase = case
-        find.MatchWildcards = regex
-        find.Execute(Replace=2)  # wdReplaceAll
+        find.MatchWildcards = wildcard
+        find.Execute(Replace=WD_REPLACE_ALL)
         return count
 
-    def text_get(self, app: object, start: int = 0, end: int = -1) -> str:
+    def text_get(self, app: Any, start: int = 0, end: int = -1) -> str:
         doc = app.ActiveDocument
         rng = doc.Range(start, end if end >= 0 else doc.Range().End)
         return rng.Text
 
-    def text_count(self, app: object) -> dict:
+    def text_count(self, app: Any) -> dict:
         doc = app.ActiveDocument
         return {
-            "words": doc.ComputeStatistics(0),
-            "characters": doc.ComputeStatistics(3),
+            "words": doc.ComputeStatistics(WD_STATISTIC_WORDS),
+            "characters": doc.ComputeStatistics(WD_STATISTIC_CHARACTERS),
             "paragraphs": doc.Paragraphs.Count,
-            "pages": doc.ComputeStatistics(2),
+            "pages": doc.ComputeStatistics(WD_STATISTIC_PAGES),
         }
 
     # ── 段落操作 ──
 
-    def heading_insert(self, app: object, text: str, level: int = 1) -> None:
+    def heading_insert(self, app: Any, text: str, level: int = 1) -> None:
         sel = app.Selection
         sel.Style = f"标题 {level}"
         sel.TypeText(text)
@@ -112,28 +134,28 @@ class WriterService:
 
     def paragraph_format(
         self,
-        app: object,
+        app: Any,
         align: str | None = None,
         indent_left: float | None = None,
         indent_first: float | None = None,
         line_spacing: float | None = None,
     ) -> None:
         pf = app.Selection.ParagraphFormat
-        align_map = {"left": 0, "center": 1, "right": 2, "justify": 3}
+        align_map = {"left": ALIGN_LEFT, "center": ALIGN_CENTER, "right": ALIGN_RIGHT, "justify": ALIGN_JUSTIFY}
         if align is not None:
-            pf.Alignment = align_map.get(align, 0)
+            pf.Alignment = align_map.get(align, ALIGN_LEFT)
         if indent_left is not None:
             pf.LeftIndent = indent_left
         if indent_first is not None:
             pf.FirstLineIndent = indent_first
         if line_spacing is not None:
-            pf.LineSpacingRule = 4  # wdLineSpaceMultiple
+            pf.LineSpacingRule = WD_LINE_SPACE_MULTIPLE
             pf.LineSpacing = line_spacing * 12
 
     # ── 表格操作 ──
 
     def table_insert(
-        self, app: object, rows: int, cols: int, data: list[list[str]] | None = None
+        self, app: Any, rows: int, cols: int, data: list[list[str]] | None = None
     ) -> int:
         doc = app.ActiveDocument
         rng = app.Selection.Range
@@ -145,7 +167,7 @@ class WriterService:
                     table.Cell(i + 1, j + 1).Range.Text = str(cell_text)
         return table.Index
 
-    def table_get(self, app: object, index: int) -> list[list[str]]:
+    def table_get(self, app: Any, index: int) -> list[list[str]]:
         doc = app.ActiveDocument
         table = doc.Tables(index)
         result = []
@@ -160,23 +182,23 @@ class WriterService:
 
     def image_insert(
         self,
-        app: object,
+        app: Any,
         path: Path,
         width: float | None = None,
         height: float | None = None,
     ) -> None:
         sel = app.Selection
         shape = sel.InlineShapes.AddPicture(str(path))
-        if width:
+        if width is not None:
             shape.Width = width
-        if height:
+        if height is not None:
             shape.Height = height
 
     # ── 页面布局 ──
 
     def page_setup(
         self,
-        app: object,
+        app: Any,
         width_mm: float | None = None,
         height_mm: float | None = None,
         margin_top: float | None = None,
@@ -185,25 +207,26 @@ class WriterService:
         margin_right: float | None = None,
     ) -> None:
         page = app.ActiveDocument.PageSetup
-        if width_mm:
-            page.PageWidth = width_mm * 2.835
-        if height_mm:
-            page.PageHeight = height_mm * 2.835
-        if margin_top:
-            page.TopMargin = margin_top * 2.835
-        if margin_bottom:
-            page.BottomMargin = margin_bottom * 2.835
-        if margin_left:
-            page.LeftMargin = margin_left * 2.835
-        if margin_right:
-            page.RightMargin = margin_right * 2.835
+        MM_TO_PT = 2.835
+        if width_mm is not None:
+            page.PageWidth = width_mm * MM_TO_PT
+        if height_mm is not None:
+            page.PageHeight = height_mm * MM_TO_PT
+        if margin_top is not None:
+            page.TopMargin = margin_top * MM_TO_PT
+        if margin_bottom is not None:
+            page.BottomMargin = margin_bottom * MM_TO_PT
+        if margin_left is not None:
+            page.LeftMargin = margin_left * MM_TO_PT
+        if margin_right is not None:
+            page.RightMargin = margin_right * MM_TO_PT
 
-    def page_break(self, app: object) -> None:
-        app.Selection.InsertBreak(7)  # wdPageBreak
+    def page_break(self, app: Any) -> None:
+        app.Selection.InsertBreak(WD_PAGE_BREAK)
 
     # ── 导出 ──
 
-    def export_pdf(self, app: object, output: Path) -> Path:
+    def export_pdf(self, app: Any, output: Path) -> Path:
         doc = app.ActiveDocument
-        doc.ExportAsFixedFormat(str(output), 17)  # wdExportFormatPDF
+        doc.ExportAsFixedFormat(str(output), WD_FORMAT_PDF)
         return output

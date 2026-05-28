@@ -1,28 +1,22 @@
 """统一导出服务"""
 
+from dataclasses import dataclass
 from pathlib import Path
 
+from wps_cli.consts import (
+    CALC_FORMATS,
+    IMPRESS_FORMATS,
+    WD_DO_NOT_SAVE_CHANGES,
+    WRITER_FORMATS,
+)
 from wps_cli.services.session_manager import SessionManager
 
 
+@dataclass
 class ExportService:
     """跨应用格式转换"""
 
-    def __init__(self, manager: SessionManager):
-        self.manager = manager
-
-    FORMAT_MAP: dict[str, int] = {
-        "docx": 16,    # wdFormatDocumentDefault
-        "doc": 0,      # wdFormatDocument
-        "rtf": 6,      # wdFormatRTF
-        "txt": 2,      # wdFormatText
-        "html": 8,     # wdFormatHTML
-        "pdf": 17,     # wdFormatPDF
-        "xlsx": 51,    # xlOpenXMLWorkbook
-        "csv": 6,      # xlCSV
-        "pptx": 24,    # ppSaveAsOpenXMLPresentation
-        "ppt": 0,      # ppSaveAsPresentation
-    }
+    manager: SessionManager
 
     def detect_app_type(self, path: Path) -> str:
         """根据文件扩展名判断应用类型"""
@@ -38,10 +32,21 @@ class ExportService:
             return "impress"
         raise ValueError(f"不支持的文件格式: {ext}")
 
+    def _get_format_map(self, app_type: str) -> dict[str, int]:
+        """获取指定应用类型的格式映射"""
+        if app_type == "writer":
+            return WRITER_FORMATS
+        if app_type == "calc":
+            return CALC_FORMATS
+        if app_type == "impress":
+            return IMPRESS_FORMATS
+        raise ValueError(f"未知应用类型: {app_type}")
+
     def convert(self, input_path: Path, output_format: str, output_path: Path | None = None) -> Path:
         """通用格式转换"""
         app_type = self.detect_app_type(input_path)
-        fmt_code = self.FORMAT_MAP.get(output_format)
+        fmt_map = self._get_format_map(app_type)
+        fmt_code = fmt_map.get(output_format)
         if fmt_code is None:
             raise ValueError(f"不支持的目标格式: {output_format}")
 
@@ -52,11 +57,11 @@ class ExportService:
             if app_type == "writer":
                 doc = app.Documents.Open(str(input_path))
                 doc.SaveAs(str(output_path), fmt_code)
-                doc.Close(0)
+                doc.Close(WD_DO_NOT_SAVE_CHANGES)
             elif app_type == "calc":
                 wb = app.Workbooks.Open(str(input_path))
                 wb.SaveAs(str(output_path), fmt_code)
-                wb.Close(0)
+                wb.Close(WD_DO_NOT_SAVE_CHANGES)
             elif app_type == "impress":
                 pres = app.Presentations.Open(str(input_path))
                 pres.SaveAs(str(output_path), fmt_code)

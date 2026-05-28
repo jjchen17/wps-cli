@@ -1,15 +1,25 @@
 """PDF 处理业务逻辑"""
 
+from dataclasses import dataclass
 from pathlib import Path
 
+from wps_cli.consts import (
+    MSO_TEXT_EFFECT_1,
+    WD_DO_NOT_SAVE_CHANGES,
+    WD_FORMAT_PDF,
+    WD_HEADER_FOOTER_PRIMARY,
+    WD_PAGE,
+    WD_STATISTIC_PAGES,
+    WD_STORY,
+)
 from wps_cli.services.session_manager import SessionManager
 
 
+@dataclass
 class PdfService:
     """PDF 文档操作（基于 WPS 导出能力）"""
 
-    def __init__(self, manager: SessionManager):
-        self.manager = manager
+    manager: SessionManager
 
     def info(self, path: Path) -> dict:
         """获取 PDF 元信息"""
@@ -30,10 +40,10 @@ class PdfService:
             # 插入后续文档
             for p in inputs[1:]:
                 sel = app.Selection
-                sel.EndKey(6)  # 到文档末尾
+                sel.EndKey(WD_STORY)
                 sel.InsertFile(str(p))
-            doc.SaveAs(str(output), 17)  # wdFormatPDF
-            doc.Close(0)
+            doc.SaveAs(str(output), WD_FORMAT_PDF)
+            doc.Close(WD_DO_NOT_SAVE_CHANGES)
         return output
 
     def extract_pages(self, input_path: Path, pages: str, output: Path) -> Path:
@@ -41,16 +51,24 @@ class PdfService:
         page_list = self._parse_pages(pages)
         with self.manager.session("writer") as app:
             doc = app.Documents.Open(str(input_path))
-            # 删除不需要的页面（从后往前删）
-            total = doc.ComputeStatistics(2)
-            pages_to_delete = [p for p in range(1, total + 1) if p not in page_list]
-            for page_num in reversed(pages_to_delete):
-                rng = doc.Range()
-                rng.GoTo(1, 1, page_num)  # wdGoToPage
-                rng.End = rng.Start + 1
-                rng.Delete()
-            doc.SaveAs(str(output), 17)
-            doc.Close(0)
+            total = doc.ComputeStatistics(WD_STATISTIC_PAGES)
+            pages_to_delete = sorted(
+                [p for p in range(1, total + 1) if p not in page_list], reverse=True
+            )
+            for page_num in pages_to_delete:
+                start_rng = doc.Range()
+                start_rng.GoTo(WD_PAGE, 1, page_num)
+                start_pos = start_rng.Start
+                if page_num < total:
+                    end_rng = doc.Range()
+                    end_rng.GoTo(WD_PAGE, 1, page_num + 1)
+                    end_pos = end_rng.Start
+                else:
+                    end_pos = doc.Range().End
+                page_rng = doc.Range(start_pos, end_pos)
+                page_rng.Delete()
+            doc.SaveAs(str(output), WD_FORMAT_PDF)
+            doc.Close(WD_DO_NOT_SAVE_CHANGES)
         return output
 
     def split(self, input_path: Path, every: int, output_dir: Path) -> list[Path]:
@@ -58,24 +76,28 @@ class PdfService:
         output_dir.mkdir(parents=True, exist_ok=True)
         with self.manager.session("writer") as app:
             doc = app.Documents.Open(str(input_path))
-            total = doc.ComputeStatistics(2)
+            total = doc.ComputeStatistics(WD_STATISTIC_PAGES)
             results = []
             for start in range(1, total + 1, every):
                 end = min(start + every - 1, total)
                 rng = doc.Range()
-                rng.GoTo(1, 1, start)
+                rng.GoTo(WD_PAGE, 1, start)
                 start_pos = rng.Start
-                rng.GoTo(1, 1, end + 1 if end < total else end)
-                end_pos = rng.End
+                if end < total:
+                    end_rng = doc.Range()
+                    end_rng.GoTo(WD_PAGE, 1, end + 1)
+                    end_pos = end_rng.Start
+                else:
+                    end_pos = doc.Range().End
                 part_rng = doc.Range(start_pos, end_pos)
                 part_path = output_dir / f"part_{start}-{end}.pdf"
                 part_rng.Copy()
                 new_doc = app.Documents.Add()
                 new_doc.Range().Paste()
-                new_doc.SaveAs(str(part_path), 17)
-                new_doc.Close(0)
+                new_doc.SaveAs(str(part_path), WD_FORMAT_PDF)
+                new_doc.Close(WD_DO_NOT_SAVE_CHANGES)
                 results.append(part_path)
-            doc.Close(0)
+            doc.Close(WD_DO_NOT_SAVE_CHANGES)
         return results
 
     def watermark(self, input_path: Path, text: str, output: Path) -> Path:
@@ -83,15 +105,15 @@ class PdfService:
         with self.manager.session("writer") as app:
             doc = app.Documents.Open(str(input_path))
             for section in doc.Sections:
-                header = section.Headers(1)  # wdHeaderFooterPrimary
+                header = section.Headers(WD_HEADER_FOOTER_PRIMARY)
                 shape = header.Shapes.AddTextEffect(
-                    1, text, "宋体", 36, False, False, 0, 0  # msoTextEffect1
+                    MSO_TEXT_EFFECT_1, text, "宋体", 36, False, False, 0, 0
                 )
                 shape.Rotation = -45
                 shape.Fill.ForeColor.RGB = 0xCCCCCC
                 shape.TextEffect.NormalizedHeight = False
-            doc.SaveAs(str(output), 17)
-            doc.Close(0)
+            doc.SaveAs(str(output), WD_FORMAT_PDF)
+            doc.Close(WD_DO_NOT_SAVE_CHANGES)
         return output
 
     @staticmethod

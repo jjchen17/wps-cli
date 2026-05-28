@@ -45,13 +45,19 @@ def doctor():
 
     # 检测 WPS
     for name, prog_id in [("Writer", "KWPS.Application"), ("Calc", "KET.Application"), ("Impress", "KWPP.Application")]:
+        app = None
         try:
             app = win32com.client.Dispatch(prog_id)
             ver = app.Version
-            app.Quit()
             typer.echo(f"WPS {name}: {ver}")
         except Exception:
             typer.echo(f"WPS {name}: 未检测到")
+        finally:
+            if app is not None:
+                try:
+                    app.Quit()
+                except Exception:
+                    pass
 
     typer.echo("诊断完成")
 
