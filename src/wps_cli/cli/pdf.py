@@ -5,12 +5,17 @@ from __future__ import annotations
 import typer
 
 from wps_cli.cli.common import handle_error, make_get_service, success
+from wps_cli.consts import PDF_INPUT_EXTENSIONS
 from wps_cli.services.pdf_service import PdfService
 from wps_cli.utils.path_utils import ensure_safe_input_path, ensure_safe_output_path
 
 app = typer.Typer(help="PDF 文档操作")
 
 _get_service = make_get_service(PdfService)
+
+
+def _safe_pdf_input(file: str):
+    return ensure_safe_input_path(file, allowed_extensions=PDF_INPUT_EXTENSIONS)
 
 
 @app.command()
@@ -21,7 +26,7 @@ def info(
     """输出 PDF 元信息"""
     cmd = "pdf.info"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_pdf_input(file)
         result = _get_service().info(path)
         success(result, command=cmd, json_mode=json_output)
     except Exception as e:
@@ -37,7 +42,7 @@ def merge(
     """合并多个 PDF"""
     cmd = "pdf.merge"
     try:
-        paths = [ensure_safe_input_path(f) for f in files]
+        paths = [_safe_pdf_input(f) for f in files]
         out_path = ensure_safe_output_path(output)
         result = _get_service().merge(paths, out_path)
         success(
@@ -59,7 +64,7 @@ def extract_pages(
     """提取指定页面"""
     cmd = "pdf.extract_pages"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_pdf_input(file)
         out_path = ensure_safe_output_path(output)
         result = _get_service().extract_pages(path, pages, out_path)
         success(
@@ -81,7 +86,7 @@ def split(
     """按每 N 页拆分"""
     cmd = "pdf.split"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_pdf_input(file)
         out_dir = ensure_safe_output_path(output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         results = _get_service().split(path, every, out_dir)
@@ -104,7 +109,7 @@ def watermark(
     """添加文字水印"""
     cmd = "pdf.watermark"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_pdf_input(file)
         out_path = ensure_safe_output_path(output)
         result = _get_service().watermark(path, text, out_path)
         success({"path": str(result)}, command=cmd, json_mode=json_output)

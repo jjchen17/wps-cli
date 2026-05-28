@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json as json_mod
+import re
 
 import typer
 
 from wps_cli.cli.common import handle_error, make_get_service, success
+from wps_cli.consts import MAX_REPLACE_TEXT_LEN, WRITER_INPUT_EXTENSIONS
 from wps_cli.exceptions import ValidationError
 from wps_cli.services.style_engine import StyleEngine
 from wps_cli.services.writer_service import WriterService
@@ -15,6 +17,10 @@ from wps_cli.utils.path_utils import ensure_safe_input_path, ensure_safe_output_
 app = typer.Typer(help="Word 文档操作")
 
 _get_service = make_get_service(WriterService)
+
+
+def _safe_writer_input(file: str):
+    return ensure_safe_input_path(file, allowed_extensions=WRITER_INPUT_EXTENSIONS)
 
 
 @app.command()
@@ -40,7 +46,7 @@ def info(
     """输出文档元信息"""
     cmd = "writer.info"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
         result = _get_service().info(path)
         success(result, command=cmd, json_mode=json_output)
     except Exception as e:
@@ -59,7 +65,15 @@ def replace(
     """查找替换文本"""
     cmd = "writer.replace"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
+        if len(old) > MAX_REPLACE_TEXT_LEN or len(new_text) > MAX_REPLACE_TEXT_LEN:
+            raise ValidationError(f"查找/替换文本长度不能超过 {MAX_REPLACE_TEXT_LEN} 字符")
+        if not old:
+            raise ValidationError("查找文本不能为空")
+        if wildcard and re.search(r"\\[1-9]", new_text):
+            raise ValidationError(
+                "通配符替换模式中不允许使用反向引用 (\\1-\\9)，可能导致内容指数级膨胀"
+            )
         svc = _get_service()
         session = svc.open_document(path)
         try:
@@ -80,7 +94,7 @@ def count(
     """统计字数、段落、页数"""
     cmd = "writer.count"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
         svc = _get_service()
         session = svc.open_document(path, readonly=True)
         try:
@@ -103,7 +117,7 @@ def table_insert(
     """插入表格"""
     cmd = "writer.table_insert"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
         if rows <= 0 or cols <= 0:
             raise ValidationError("rows / cols 必须为正整数")
         try:
@@ -131,7 +145,7 @@ def table_get(
     """读取表格数据"""
     cmd = "writer.table_get"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
         svc = _get_service()
         session = svc.open_document(path, readonly=True)
         try:
@@ -154,7 +168,7 @@ def image_insert(
     """插入图片"""
     cmd = "writer.image_insert"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
         image_path = ensure_safe_input_path(image)
         svc = _get_service()
         session = svc.open_document(path)
@@ -187,7 +201,7 @@ def page_setup(
     """设置页面布局"""
     cmd = "writer.page_setup"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
         svc = _get_service()
         session = svc.open_document(path)
         try:
@@ -211,7 +225,7 @@ def export_pdf(
     """导出为 PDF"""
     cmd = "writer.export_pdf"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
         out_path = ensure_safe_output_path(output) if output else path.with_suffix(".pdf")
         svc = _get_service()
         session = svc.open_document(path, readonly=True)
@@ -238,7 +252,7 @@ def style_apply(
         success({"presets": engine.list_presets()}, command=cmd, json_mode=json_output)
         return
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_writer_input(file)
         svc = _get_service()
         session = svc.open_document(path)
         try:

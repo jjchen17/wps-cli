@@ -77,6 +77,11 @@ class TestEnsureSafeGlob:
         with pytest.raises(ValidationError):
             ensure_safe_glob("")
 
+    def test_dotdot_rejected(self):
+        """H-4: 拒绝 .. 跳转（之前依赖最终 resolve 防线，现在前置拦截）"""
+        with pytest.raises(ValidationError, match=r"\.\."):
+            ensure_safe_glob("../**/*.docx")
+
     def test_relative_pattern_works(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         (tmp_path / "a.docx").write_text("x")
@@ -94,6 +99,14 @@ class TestEnsureSafeGlob:
         results = ensure_safe_glob("**/*.docx")
         assert len(results) == 1
         assert results[0].name == "x.docx"
+
+    def test_max_results_enforced(self, tmp_path, monkeypatch):
+        """H-4: ** 模式下结果数量被截断"""
+        monkeypatch.chdir(tmp_path)
+        for i in range(10):
+            (tmp_path / f"f{i}.docx").write_text("x")
+        with pytest.raises(ValidationError, match="超出上限"):
+            ensure_safe_glob("**/*.docx", max_results=5)
 
 
 class TestSanitizeFilename:
@@ -114,6 +127,29 @@ class TestRedactPath:
         result = redact_path(text)
         assert "alice" not in result
         assert "<path>" in result
+
+    def test_unc_path_redacted(self):
+        text = "share unreachable: \\\\fileserver\\team\\private\\plan.xlsx"
+        result = redact_path(text)
+        assert "fileserver" not in result
+        assert "<unc-path>" in result
+
+    def test_relative_path_redacted(self):
+        text = "could not open ./private/notes.txt"
+        result = redact_path(text)
+        assert "private" not in result
+
+    def test_extension_whitelist_input(self, tmp_path):
+        """H-1: 白名单拒绝错误扩展名"""
+        f = tmp_path / "README.md"
+        f.write_text("x")
+        with pytest.raises(ValidationError, match="扩展名"):
+            ensure_safe_input_path(str(f), allowed_extensions={".xlsx", ".csv"})
+
+    def test_extension_whitelist_allows_correct(self, tmp_path):
+        f = tmp_path / "data.xlsx"
+        f.write_text("x")
+        assert ensure_safe_input_path(str(f), allowed_extensions={".xlsx"}) == f.resolve()
 
     def test_empty_string(self):
         assert redact_path("") == ""

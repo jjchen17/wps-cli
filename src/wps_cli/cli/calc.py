@@ -5,12 +5,17 @@ from __future__ import annotations
 import typer
 
 from wps_cli.cli.common import handle_error, make_get_service, success
+from wps_cli.consts import CALC_INPUT_EXTENSIONS
 from wps_cli.services.calc_service import CalcService
 from wps_cli.utils.path_utils import ensure_safe_input_path, ensure_safe_output_path
 
 app = typer.Typer(help="Excel 电子表格操作")
 
 _get_service = make_get_service(CalcService)
+
+
+def _safe_calc_input(file: str):
+    return ensure_safe_input_path(file, allowed_extensions=CALC_INPUT_EXTENSIONS)
 
 
 @app.command()
@@ -36,7 +41,7 @@ def info(
     """输出工作簿元信息"""
     cmd = "calc.info"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         result = _get_service().info(path)
         success(result, command=cmd, json_mode=json_output)
     except Exception as e:
@@ -51,7 +56,7 @@ def sheet_list(
     """列出所有工作表"""
     cmd = "calc.sheet_list"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         svc = _get_service()
         session = svc.manager.start("calc")
         try:
@@ -74,7 +79,7 @@ def cell_get(
     """读取单元格值"""
     cmd = "calc.cell_get"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         svc = _get_service()
         session = svc.manager.start("calc")
         try:
@@ -98,7 +103,7 @@ def cell_set(
     """写入单元格"""
     cmd = "calc.cell_set"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         svc = _get_service()
         session = svc.manager.start("calc")
         try:
@@ -122,7 +127,7 @@ def cell_range(
     """读取单元格区域"""
     cmd = "calc.cell_range"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         svc = _get_service()
         session = svc.manager.start("calc")
         try:
@@ -155,7 +160,7 @@ def cell_formula(
     """设置公式（拒绝 SHELL/DDE/HYPERLINK 等危险函数）"""
     cmd = "calc.cell_formula"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         svc = _get_service()
         session = svc.manager.start("calc")
         try:
@@ -186,7 +191,7 @@ def chart_create(
     """创建图表"""
     cmd = "calc.chart_create"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         svc = _get_service()
         session = svc.manager.start("calc")
         try:
@@ -212,7 +217,7 @@ def sort(
     """排序"""
     cmd = "calc.sort"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         svc = _get_service()
         session = svc.manager.start("calc")
         try:
@@ -235,7 +240,7 @@ def export_csv(
     """导出为 CSV"""
     cmd = "calc.export_csv"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_calc_input(file)
         out_path = ensure_safe_output_path(output) if output else None
         from wps_cli.services.export_service import ExportService
 

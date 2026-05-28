@@ -120,16 +120,50 @@ MSO_AUTOMATION_SECURITY_FORCE_DISABLE = 3
 # ── 安全限制 ────────────────────────────────────────────────────
 # 公式中禁止出现的危险函数（COM 注入防护）
 DANGEROUS_FORMULA_TOKENS: tuple[str, ...] = (
+    # 命令执行类
     "SHELL(",
     "DDE(",
     "DDEAUTO(",
     "EXEC(",
+    "EXECUTE(",
     "CALL(",
     "REGISTER(",
-    "EXECUTE(",
+    # 外联/数据获取类（数据外泄、SSRF）
     "HYPERLINK(",
+    "WEBSERVICE(",
+    "ENCODEURL(",
+    "FILTERXML(",
+    "RTD(",
+    "IMPORTDATA(",
+    "IMPORTHTML(",
+    "IMPORTRANGE(",
+    "IMPORTXML(",
+    "IMPORTFEED(",
+    # _xlfn. 兼容前缀写法（Excel 兼容性命名空间）
+    "_XLFN.WEBSERVICE(",
+    "_XLFN.FILTERXML(",
+    "_XLFN.ENCODEURL(",
+    "_XLFN.RTD(",
 )
 
 # PDF 页码解析的硬上限，防止 "1-999999" 内存炸弹
 MAX_PDF_PAGE_NUMBER = 9999
 MAX_PDF_PAGE_RANGE_SIZE = 1000
+
+# glob 匹配结果数量上限（防止 ** 触发大量 COM 操作）
+MAX_GLOB_RESULTS = 200
+
+# 文本替换长度上限（防止超长输入或反向引用爆炸）
+MAX_REPLACE_TEXT_LEN = 1000
+
+# 受支持的文件扩展名白名单
+WRITER_INPUT_EXTENSIONS: frozenset[str] = frozenset(
+    {".doc", ".docx", ".wps", ".rtf", ".txt", ".html", ".htm", ".xml"}
+)
+CALC_INPUT_EXTENSIONS: frozenset[str] = frozenset(
+    {".xls", ".xlsx", ".xlsm", ".et", ".ett", ".csv", ".tsv"}
+)
+IMPRESS_INPUT_EXTENSIONS: frozenset[str] = frozenset(
+    {".ppt", ".pptx", ".pps", ".ppsx", ".dps", ".dpt", ".pot", ".potx"}
+)
+PDF_INPUT_EXTENSIONS: frozenset[str] = frozenset({".pdf"})

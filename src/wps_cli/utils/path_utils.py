@@ -1,6 +1,6 @@
 """路径处理工具
 
-集中所有路径校验逻辑，CLI 层入口必须经过 ``ensure_safe_input_path`` 与
+集中所有路径校验逻辑。CLI 层入口必须经过 ``ensure_safe_input_path`` 与
 ``ensure_safe_output_path`` 校验，避免裸 ``Path(...)`` 透传到 COM。
 """
 
@@ -10,6 +10,7 @@ import os
 import pathlib
 import re
 
+from wps_cli.consts import MAX_GLOB_RESULTS
 from wps_cli.exceptions import FileNotFoundErrorCli, ValidationError
 
 
@@ -54,16 +55,31 @@ def _is_relative_to(path: pathlib.Path, parent: pathlib.Path) -> bool:
         return False
 
 
-def ensure_safe_input_path(path: str | pathlib.Path) -> pathlib.Path:
+def ensure_safe_input_path(
+    path: str | pathlib.Path,
+    *,
+    allowed_extensions: frozenset[str] | set[str] | None = None,
+) -> pathlib.Path:
     """校验输入文件路径：必须存在、非符号链接、非 UNC
 
-    用于所有读取已有文件的命令。
+    Args:
+        path: 待校验路径
+        allowed_extensions: 允许的扩展名集合（小写，含点，如 ``{".xlsx", ".csv"}``）。
+            为空时不限制扩展名。**所有写操作命令应当传入对应应用类型的白名单**，
+            防止 ``wps calc cell-set README.md ...`` 这类把任意文件作为工作簿打开
+            并覆盖的攻击。
     """
     p = validate_path(path)
     if not p.exists():
         raise FileNotFoundErrorCli(str(path))
     if not p.is_file():
         raise ValidationError(f"路径不是文件: {path}")
+    if allowed_extensions is not None:
+        suffix = p.suffix.lower()
+        if suffix not in allowed_extensions:
+            raise ValidationError(
+                f"不支持的文件扩展名 {suffix!r}，允许: {sorted(allowed_extensions)}"
+            )
     return p
 
 
@@ -77,13 +93,20 @@ def ensure_safe_output_path(path: str | pathlib.Path) -> pathlib.Path:
     return p
 
 
-def ensure_safe_glob(pattern: str, base_dir: pathlib.Path | None = None) -> list[pathlib.Path]:
+def ensure_safe_glob(
+    pattern: str,
+    base_dir: pathlib.Path | None = None,
+    *,
+    max_results: int = MAX_GLOB_RESULTS,
+) -> list[pathlib.Path]:
     """安全地展开 glob 模式
 
     限制：
       - 拒绝绝对路径模式
       - 拒绝 UNC 路径
+      - 拒绝包含 ``..`` 的模式（避免依赖 resolve 后的最终防线）
       - 结果必须位于 base_dir 之下（默认当前工作目录）
+      - 结果数量不超过 ``max_results``，防止 ``**`` 触发大量 COM 操作（DoS）
 
     用于 batch 操作，防止攻击者扫描整盘。
     """
@@ -93,6 +116,8 @@ def ensure_safe_glob(pattern: str, base_dir: pathlib.Path | None = None) -> list
         raise ValidationError("不允许使用 UNC 路径")
     if pathlib.Path(pattern).is_absolute():
         raise ValidationError("不允许使用绝对路径模式（请改用相对当前目录的模式）")
+    if ".." in pathlib.PurePosixPath(pattern.replace("\\", "/")).parts:
+        raise ValidationError("glob 模式不允许包含 '..' 路径跳转")
 
     import glob
 
@@ -105,6 +130,8 @@ def ensure_safe_glob(pattern: str, base_dir: pathlib.Path | None = None) -> list
             continue
         if _is_relative_to(candidate, base) and candidate.is_file():
             safe.append(candidate)
+        if len(safe) > max_results:
+            raise ValidationError(f"glob 匹配结果超出上限 {max_results}，请缩小匹配范围")
     return safe
 
 
@@ -125,7 +152,7 @@ def ensure_parent_dir(path: pathlib.Path) -> None:
 def redact_path(text: str) -> str:
     """对错误消息中的本地路径做脱敏处理
 
-    将用户主目录、Windows 盘符路径替换为占位符，避免 JSON 错误响应泄露文件系统结构。
+    覆盖：用户主目录、Windows 盘符路径、UNC 路径、相对路径（./ ../）。
     """
     if not text:
         return text
@@ -133,5 +160,10 @@ def redact_path(text: str) -> str:
     if home and home != "~":
         text = text.replace(home, "~")
         text = text.replace(home.replace("\\", "/"), "~")
+    # UNC 路径 \\server\share\...
+    text = re.sub(r"\\\\[^\s'\"]+", "<unc-path>", text)
+    # Windows 盘符路径 C:\... 或 c:/...
     text = re.sub(r"[A-Za-z]:[\\/][^\s'\"]*", "<path>", text)
+    # 相对路径 ./xxx 或 ../xxx
+    text = re.sub(r"(?:^|(?<=[\s'\"(]))\.{1,2}[\\/][^\s'\")]*", "<rel-path>", text)
     return text

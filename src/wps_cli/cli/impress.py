@@ -7,12 +7,17 @@ from pathlib import Path
 import typer
 
 from wps_cli.cli.common import handle_error, make_get_service, success
+from wps_cli.consts import IMPRESS_INPUT_EXTENSIONS
 from wps_cli.services.impress_service import ImpressService
 from wps_cli.utils.path_utils import ensure_safe_input_path, ensure_safe_output_path
 
 app = typer.Typer(help="PPT 演示文稿操作")
 
 _get_service = make_get_service(ImpressService)
+
+
+def _safe_impress_input(file: str):
+    return ensure_safe_input_path(file, allowed_extensions=IMPRESS_INPUT_EXTENSIONS)
 
 
 def _open_pres(svc: ImpressService, path: Path, readonly: bool = False):
@@ -48,7 +53,7 @@ def info(
     """输出演示文稿元信息"""
     cmd = "impress.info"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_impress_input(file)
         result = _get_service().info(path)
         success(result, command=cmd, json_mode=json_output)
     except Exception as e:
@@ -63,7 +68,7 @@ def slide_list(
     """列出所有幻灯片"""
     cmd = "impress.slide_list"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_impress_input(file)
         svc = _get_service()
         session = _open_pres(svc, path, readonly=True)
         try:
@@ -86,7 +91,7 @@ def slide_add(
     """新增幻灯片"""
     cmd = "impress.slide_add"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_impress_input(file)
         svc = _get_service()
         session = _open_pres(svc, path)
         try:
@@ -108,7 +113,7 @@ def slide_delete(
     """删除幻灯片"""
     cmd = "impress.slide_delete"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_impress_input(file)
         svc = _get_service()
         session = _open_pres(svc, path)
         try:
@@ -134,7 +139,7 @@ def text_set(
     """设置幻灯片文本"""
     cmd = "impress.text_set"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_impress_input(file)
         svc = _get_service()
         session = _open_pres(svc, path)
         try:
@@ -156,7 +161,7 @@ def text_get(
     """提取幻灯片文本"""
     cmd = "impress.text_get"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_impress_input(file)
         svc = _get_service()
         session = _open_pres(svc, path, readonly=True)
         try:
@@ -180,7 +185,7 @@ def image_insert(
     """插入图片"""
     cmd = "impress.image_insert"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_impress_input(file)
         image_path = ensure_safe_input_path(image)
         svc = _get_service()
         session = _open_pres(svc, path)
@@ -203,7 +208,7 @@ def export_pdf(
     """导出为 PDF"""
     cmd = "impress.export_pdf"
     try:
-        path = ensure_safe_input_path(file)
+        path = _safe_impress_input(file)
         out_path = ensure_safe_output_path(output) if output else path.with_suffix(".pdf")
         svc = _get_service()
         session = _open_pres(svc, path, readonly=True)

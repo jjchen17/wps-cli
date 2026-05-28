@@ -66,9 +66,6 @@ class WriterService:
             self.manager.stop(session.session_id)
             raise
 
-    # 兼容别名
-    open = open_document
-
     def save(self, app: Any, path: Path | None = None) -> Path:
         doc = app.ActiveDocument
         if path:
@@ -114,9 +111,11 @@ class WriterService:
 
         Args:
             wildcard: 启用 WPS 通配符模式（* 任意字符, ? 单字符, [abc] 字符集）
+
+        非通配符模式下用 Find API 逐次计数（精确，不受 ``new`` 是否包含 ``old`` 影响）。
+        通配符模式下计数语义复杂（同一位置可被不同通配规则反复匹配），返回 -1 表示未知。
         """
         doc = app.ActiveDocument
-        before = doc.Range().Text.count(old) if not wildcard else None
 
         find = doc.Content.Find
         find.ClearFormatting()
@@ -126,13 +125,23 @@ class WriterService:
         find.MatchCase = case
         find.MatchWildcards = wildcard
         find.Forward = True
-        find.Wrap = 1  # wdFindContinue
-        find.Execute(Replace=WD_REPLACE_ALL)
+        find.Wrap = 0  # wdFindStop 防止 wrap 导致重复计数
 
-        if before is not None:
-            after = doc.Range().Text.count(old)
-            return max(0, before - after)
-        # 通配符模式无法精确还原，返回 -1 表示未知
+        if not wildcard:
+            count = 0
+            scan = doc.Content.Find
+            scan.ClearFormatting()
+            scan.Text = old
+            scan.MatchCase = case
+            scan.MatchWildcards = False
+            scan.Forward = True
+            scan.Wrap = 0
+            while scan.Execute(Replace=0):
+                count += 1
+            find.Execute(Replace=WD_REPLACE_ALL)
+            return count
+
+        find.Execute(Replace=WD_REPLACE_ALL)
         return -1
 
     def text_get(self, app: Any, start: int = 0, end: int = -1) -> str:

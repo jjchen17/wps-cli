@@ -5,12 +5,21 @@ from __future__ import annotations
 import typer
 
 from wps_cli.cli.common import handle_error, make_get_service, success
+from wps_cli.consts import (
+    CALC_INPUT_EXTENSIONS,
+    IMPRESS_INPUT_EXTENSIONS,
+    WRITER_INPUT_EXTENSIONS,
+)
 from wps_cli.services.export_service import ExportService
 from wps_cli.utils.path_utils import ensure_safe_input_path, ensure_safe_output_path
 
 app = typer.Typer(help="格式转换与导出")
 
 _get_service = make_get_service(ExportService)
+
+_OFFICE_INPUT_EXTENSIONS = (
+    WRITER_INPUT_EXTENSIONS | CALC_INPUT_EXTENSIONS | IMPRESS_INPUT_EXTENSIONS
+)
 
 
 @app.command()
@@ -27,7 +36,7 @@ def convert(
     """格式转换"""
     cmd = "export.convert"
     try:
-        path = ensure_safe_input_path(file)
+        path = ensure_safe_input_path(file, allowed_extensions=_OFFICE_INPUT_EXTENSIONS)
         out_path = ensure_safe_output_path(output) if output else None
         result = _get_service().convert(path, target_format, out_path)
         success(

