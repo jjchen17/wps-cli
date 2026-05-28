@@ -4,49 +4,52 @@
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue.svg)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)](https://www.microsoft.com/windows)
 
+[English](#english) | 中文
+
+---
+
+## 中文
+
 WPS Office 全量 CLI 工具 — 通过 COM 自动化驱动 WPS 桌面端，覆盖 Word/Excel/PPT/PDF。
 
 > 格式与手动操作完全一致，不是模拟文件格式，而是驱动真实的 WPS 程序。
 
-[安装](#安装) · [快速开始](#快速开始) · [命令体系](#命令体系) · [架构](#架构) · [开发](#开发)
-
-## 为什么需要它
+### 为什么需要它
 
 | 方案 | 格式保真度 | 功能覆盖 |
 |------|-----------|---------|
-| python-docx / openpyxl | 低，很多格式不支持 | 仅文件操作 |
+| python-docx / openpyxl | 低，很多格式丢失 | 仅文件操作 |
 | cli-anything-wps | 100%（COM 驱动） | 47 个命令 |
-| **wps-cli（本项目）** | **100%（COM 驱动）** | **146+ 个命令** |
+| **wps-cli（本项目）** | **100%（COM 驱动）** | **36+ 个命令，持续增加中** |
 
-## 安装
+### 安装
 
-### 系统要求
-
+**系统要求：**
 - Windows 10/11
 - WPS Office 2019+
 - Python 3.10+
 
-### 安装命令
+**安装命令：**
 
 ```bash
 pip install wps-cli
 ```
 
-### 从源码安装
+**从源码安装：**
 
 ```bash
-git clone https://github.com/yourname/wps-cli.git
+git clone https://github.com/jjchen17/wps-cli.git
 cd wps-cli
 pip install -e .
 ```
 
-### 验证
+**验证安装：**
 
 ```bash
 wps doctor
 ```
 
-## 快速开始
+### 快速开始
 
 ```bash
 # 新建 Word 文档
@@ -72,25 +75,25 @@ wps export convert report.docx pdf
 wps export batch "*.docx" --to pdf --output-dir ./pdf/
 ```
 
-## 命令体系
+### 命令体系
 
 ```
 wps
-├── writer          Word 文档
+├── writer          Word 文档操作
 │   ├── new / info
 │   ├── replace / count
 │   ├── table_insert / table_get
 │   ├── image_insert
 │   ├── page_setup
 │   └── export_pdf
-├── calc            Excel 表格
+├── calc            Excel 表格操作
 │   ├── new / info
 │   ├── sheet_list
 │   ├── cell_get / cell_set / cell_range / cell_formula
 │   ├── chart_create
 │   ├── sort
 │   └── export_csv
-├── impress         PPT 演示
+├── impress         PPT 演示操作
 │   ├── new / info
 │   ├── slide_list / slide_add / slide_delete
 │   ├── text_set / text_get
@@ -116,7 +119,7 @@ wps
 | `--quiet` | 静默模式 |
 | `--dry-run` | 预览模式 |
 
-## 架构
+### 架构
 
 ```
 CLI 层 (Typer)
@@ -131,76 +134,101 @@ COM 后端层 (Backend)
 WPS Office 桌面端
 ```
 
-**三层解耦**：
-- CLI 层只做参数解析和输出格式化
-- 业务层通过抽象接口调用后端
-- 后端层封装 COM 细节，可替换为 LibreOffice / WebOffice
+三层解耦：CLI 层只做参数解析和输出格式化，业务层通过抽象接口调用后端，后端层封装 COM 细节。
 
-## 与 cli-anything-wps 对比
+### 与 cli-anything-wps 对比
 
 | 维度 | cli-anything-wps | wps-cli |
 |------|-----------------|---------|
-| 命令数量 | 47 | 146+ |
-| 页眉页脚 | 无 | 完整支持 |
-| 目录 | 无 | 插入/更新 |
-| 批注修订 | 无 | 完整支持 |
+| 命令数量 | 47 | 36+（持续增加） |
+| 页眉页脚 | 无 | 支持 |
+| 目录 | 无 | 支持 |
+| 批注修订 | 无 | 支持 |
 | 数据透视表 | 无 | 支持 |
-| 条件格式 | 无 | 支持 |
-| PDF 工具 | 无 | 15+ 命令 |
-| 模板系统 | 无 | 完整支持 |
-| REPL 模式 | 有 | 有 |
-| 输出格式 | JSON | JSON/YAML/Table/TSV |
+| PDF 工具 | 无 | 支持 |
+| 模板系统 | 无 | 支持 |
+| 输出格式 | JSON | JSON/TSV/Table |
 
-## 开发
+### 开发
 
 ```bash
-# 克隆
-git clone https://github.com/yourname/wps-cli.git
+git clone https://github.com/jjchen17/wps-cli.git
 cd wps-cli
-
-# 安装开发依赖
 pip install -e ".[dev]"
-
-# 运行测试
 pytest
-
-# 代码检查
-ruff check src/
 ```
 
-### 项目结构
+### 许可证
 
-```
-wps-cli/
-├── src/wps_cli/
-│   ├── main.py              # Typer 入口
-│   ├── cli/                 # CLI 命令层
-│   │   ├── common.py        # 公共工具
-│   │   ├── writer.py        # Writer 命令
-│   │   ├── calc.py          # Calc 命令
-│   │   ├── impress.py       # Impress 命令
-│   │   ├── pdf.py           # PDF 命令
-│   │   └── export.py        # 导出命令
-│   ├── services/            # 业务层
-│   │   ├── writer_service.py
-│   │   ├── calc_service.py
-│   │   ├── impress_service.py
-│   │   ├── pdf_service.py
-│   │   ├── export_service.py
-│   │   ├── style_engine.py
-│   │   └── session_manager.py
-│   ├── backends/            # COM 后端层
-│   │   ├── base.py          # 抽象基类
-│   │   └── wps_com.py       # WPS COM 实现
-│   └── utils/
-│       ├── path_utils.py
-│       └── platform_check.py
-├── tests/
-├── pyproject.toml
-├── LICENSE
-└── README.md
+[MIT](LICENSE)
+
+---
+
+## English
+
+A full-featured CLI tool for WPS Office — drives WPS desktop applications via COM automation, covering Word/Excel/PPT/PDF.
+
+> Formatting is identical to manual operation. This is not format simulation — it drives the real WPS application.
+
+### Why
+
+| Approach | Format Fidelity | Feature Coverage |
+|----------|----------------|-----------------|
+| python-docx / openpyxl | Low, many formats lost | File operations only |
+| cli-anything-wps | 100% (COM-driven) | 47 commands |
+| **wps-cli (this project)** | **100% (COM-driven)** | **36+ commands, growing** |
+
+### Installation
+
+**Requirements:**
+- Windows 10/11
+- WPS Office 2019+
+- Python 3.10+
+
+```bash
+pip install wps-cli
 ```
 
-## 许可证
+### Quick Start
+
+```bash
+# Create Word document
+wps writer new -o report.docx
+
+# Replace text
+wps writer replace report.docx "old" "new" --json
+
+# Read Excel cell
+wps calc cell get budget.xlsx "B3" --json
+
+# Create chart
+wps calc chart create budget.xlsx --data "A1:C10" --type bar --title "Sales"
+
+# List PPT slides
+wps impress slide list deck.pptx --json
+
+# Merge PDFs
+wps pdf merge cover.pdf body.pdf --output final.pdf
+
+# Format conversion
+wps export convert report.docx pdf
+```
+
+### Architecture
+
+```
+CLI Layer (Typer)
+    │
+    ▼
+Service Layer
+    │
+    ▼
+COM Backend Layer
+    │
+    ▼
+WPS Office Desktop
+```
+
+### License
 
 [MIT](LICENSE)
