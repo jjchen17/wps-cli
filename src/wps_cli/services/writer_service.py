@@ -41,11 +41,14 @@ class WriterService:
             doc.Close(WD_DO_NOT_SAVE_CHANGES)
         return Path(path)
 
-    def open(self, path: Path, readonly: bool = False) -> object:
+    def open(self, path: Path, readonly: bool = False) -> Any:
         session = self.manager.start("writer")
-        app = session.app
-        app.Documents.Open(str(path), ReadOnly=readonly)
-        return session
+        try:
+            session.app.Documents.Open(str(path), ReadOnly=readonly)
+            return session
+        except Exception:
+            self.manager.stop(session.session_id)
+            raise
 
     def save(self, app: Any, path: Path | None = None) -> Path:
         doc = app.ActiveDocument

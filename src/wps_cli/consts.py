@@ -107,3 +107,6 @@ IMPRESS_FORMATS: dict[str, int] = {
     "ppt": PP_SAVE_AS_PRESENTATION,
     "pdf": PP_SAVE_AS_PDF,
 }
+
+# PowerPoint 切换效果
+PP_TRANSITION_RANDOM = 3844

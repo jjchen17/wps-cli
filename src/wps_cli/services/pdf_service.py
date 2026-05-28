@@ -34,6 +34,8 @@ class PdfService:
 
     def merge(self, inputs: list[Path], output: Path) -> Path:
         """合并多个 PDF（通过 Writer 打开再导出）"""
+        if not inputs:
+            raise ValueError("至少需要一个输入文件")
         with self.manager.session("writer") as app:
             # 打开第一个文档
             doc = app.Documents.Open(str(inputs[0]))
@@ -123,8 +125,11 @@ class PdfService:
         for part in pages.split(","):
             part = part.strip()
             if "-" in part:
-                start, end = part.split("-", 1)
-                result.extend(range(int(start), int(end) + 1))
+                start_s, end_s = part.split("-", 1)
+                start, end = int(start_s), int(end_s)
+                if start > end:
+                    raise ValueError(f"页码范围无效: {start}-{end}（起始页不能大于结束页）")
+                result.extend(range(start, end + 1))
             else:
                 result.append(int(part))
         return sorted(set(result))

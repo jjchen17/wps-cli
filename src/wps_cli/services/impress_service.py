@@ -14,6 +14,7 @@ from wps_cli.consts import (
     PP_PLACEHOLDER_SUBTITLE,
     PP_PLACEHOLDER_TITLE,
     PP_SAVE_AS_PDF,
+    PP_TRANSITION_RANDOM,
 )
 from wps_cli.services.session_manager import SessionManager
 
@@ -137,9 +138,9 @@ class ImpressService:
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)
         shape = sl.Shapes.AddPicture(str(path), True, True, left, top)
-        if width:
+        if width is not None:
             shape.Width = width
-        if height:
+        if height is not None:
             shape.Height = height
 
     def notes_set(self, app: Any, slide_idx: int, text: str) -> None:
@@ -154,7 +155,7 @@ class ImpressService:
 
     # ── 切换效果 ──
 
-    def transition_set(self, app: Any, slide_idx: int, effect: int = 3844, duration: float = 1.0) -> None:
+    def transition_set(self, app: Any, slide_idx: int, effect: int = PP_TRANSITION_RANDOM, duration: float = 1.0) -> None:
         """设置幻灯片切换效果。effect 为 WPS 常量 ID"""
         pres = app.ActivePresentation
         sl = pres.Slides(slide_idx)

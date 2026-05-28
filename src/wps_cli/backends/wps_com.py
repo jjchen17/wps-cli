@@ -23,9 +23,10 @@ class WpsComBackend(ComBackend):
         return win32com.client.Dispatch(prog_id)
 
     def disconnect(self, app: Any) -> None:
+        import pythoncom
         try:
             app.Quit()
-        except Exception:
+        except pythoncom.com_error:
             pass  # 进程已退出时忽略
 
     def is_alive(self, app: Any) -> bool:
