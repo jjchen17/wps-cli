@@ -1,0 +1,7 @@
+contact_links:
+  - name: 安全漏洞报告
+    url: mailto:948881912@qq.com
+    about: 请通过邮件私下报告安全漏洞，不要在 Issue 中公开讨论
+  - name: 中文/英文 README
+    url: https://github.com/jjchen17/wps-cli#readme
+    about: 阅读项目说明

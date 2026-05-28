@@ -10,6 +10,8 @@
 
 > **不是"所见即所猜"，是所见即所得。** 不模拟文件格式，直接驱动真实的 WPS 引擎。
 
+[English](README.en.md) · [更新日志](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md)
+
 ---
 
 ## 为什么需要它
@@ -34,7 +36,7 @@
 |  | | |
 |---|---|---|
 | **100% 格式保真** | 不是解析文件，是直接指挥 WPS 引擎干活 | 所见即所得，不是所见即所猜 |
-| **AI Agent 原生支持** | 所有命令支持 `--json` / `--tsv` 输出 | 天生适配 LLM Agent 和自动化流水线 |
+| **AI Agent 原生支持** | 所有命令支持 `--json` 输出，统一 schema | 天生适配 LLM Agent 和自动化流水线 |
 | **一把梭四件套** | Writer / Calc / Impress / PDF，36 个命令 | 办公自动化一个工具全搞定 |
 
 ---
@@ -52,6 +54,9 @@ pip install wps-cli
 wps doctor
 ```
 
+> 国内网络环境推荐使用清华源加速：
+> `pip install wps-cli -i https://pypi.tuna.tsinghua.edu.cn/simple`
+
 ---
 
 ## 三步体验
@@ -60,11 +65,11 @@ wps doctor
 
 ```bash
 # Step 1: 一行命令，自动打开 Excel 插入柱状图
-wps calc chart create budget.xlsx --data "A1:C10" --type bar --title "2026年销售趋势"
+wps calc chart-create budget.xlsx --data "A1:C10" --type bar --title "2026年销售趋势"
 
 # Step 2: 提取汇总数据，结构化 JSON 喂给下游脚本或 LLM
-wps calc cell get budget.xlsx "C12" --json
-# → {"value": 285600, "formula": "=SUM(C2:C10)"}
+wps calc cell-get budget.xlsx C12 --json
+# → {"success": true, "command": "calc.cell_get", "data": {"ref": "C12", "value": 285600}}
 
 # Step 3: 一键导出 PDF，格式与 WPS 手动导出完全一致
 wps export convert budget.xlsx pdf
@@ -81,25 +86,26 @@ wps
 ├── writer          Word 文档
 │   ├── new / info
 │   ├── replace / count
-│   ├── table_insert / table_get
-│   ├── image_insert
-│   ├── page_setup
-│   └── export_pdf
+│   ├── table-insert / table-get
+│   ├── image-insert
+│   ├── page-setup
+│   ├── style-apply
+│   └── export-pdf
 ├── calc            Excel 表格
 │   ├── new / info
-│   ├── sheet_list
-│   ├── cell_get / cell_set / cell_range / cell_formula
-│   ├── chart_create
+│   ├── sheet-list
+│   ├── cell-get / cell-set / cell-range / cell-formula
+│   ├── chart-create
 │   ├── sort
-│   └── export_csv
+│   └── export-csv
 ├── impress         PPT 演示
 │   ├── new / info
-│   ├── slide_list / slide_add / slide_delete
-│   ├── text_set / text_get / image_insert
-│   └── export_pdf
+│   ├── slide-list / slide-add / slide-delete
+│   ├── text-set / text-get / image-insert
+│   └── export-pdf
 ├── pdf             PDF 处理
 │   ├── info
-│   ├── merge / extract_pages / split
+│   ├── merge / extract-pages / split
 │   └── watermark
 ├── export          格式转换
 │   ├── convert
@@ -110,10 +116,65 @@ wps
 
 | 全局选项 | 说明 |
 |---------|------|
-| `--json` | JSON 输出，AI Agent 友好 |
-| `--tsv` | TSV 输出，管道友好 |
-| `--quiet` | 静默模式 |
-| `--dry-run` | 预览模式，不实际执行 |
+| `--json` / `-j` | 结构化 JSON 输出（适合 AI Agent / 管道） |
+
+JSON 输出统一为：
+
+```json
+{
+  "success": true,
+  "command": "calc.cell_get",
+  "data": { "...": "..." }
+}
+```
+
+错误时：
+
+```json
+{
+  "success": false,
+  "command": "calc.cell_set",
+  "error": {
+    "type": "ValidationError",
+    "message": "...",
+    "code": 50,
+    "suggestion": "...",
+    "context": { "...": "..." }
+  }
+}
+```
+
+---
+
+## 退出码
+
+| 退出码 | 含义 |
+|------:|------|
+| 0  | 成功 |
+| 1  | 通用错误 |
+| 10 | WPS 未安装或未检测到 |
+| 11 | 会话管理错误 |
+| 20 | 文件操作失败 |
+| 21 | 文件不存在 |
+| 30 | COM 调用失败 |
+| 40 | 不支持的格式 |
+| 50 | 参数校验失败 |
+| 60 | 操作超时 |
+| 61 | 批量操作部分失败 |
+
+---
+
+## 安全性
+
+wps-cli 默认开启以下加固，避免常见的 Office 自动化滥用路径：
+
+- **强制禁用宏自动执行**：所有 `Documents.Open` / `Workbooks.Open` / `Presentations.Open` 调用均设置 `AutomationSecurity = msoAutomationSecurityForceDisable`，阻止 `Auto_Open` / `Document_Open` 类宏在打开文档时被触发。
+- **公式注入防护**：`calc cell-formula` 拒绝包含 `SHELL` / `DDE` / `DDEAUTO` / `EXEC` / `CALL` / `REGISTER` / `HYPERLINK` 等危险函数的公式；`calc cell-set` 拒绝以 `=` 开头的值，避免二次公式注入。
+- **路径边界限制**：所有命令的文件参数都会经过路径校验，禁止 UNC 路径与符号链接；`export batch` 的 glob 模式禁止使用绝对路径，匹配结果必须落在当前工作目录之下。
+- **页码内存炸弹防护**：`pdf extract-pages` 的页码范围有上限，避免 `1-999999` 这类输入耗尽内存。
+- **错误信息脱敏**：JSON 错误响应中的本地路径会被替换为 `<path>`，用户主目录会被替换为 `~`，避免日志/Agent 上下文泄露文件系统结构。
+
+详见 [SECURITY.md](SECURITY.md)。
 
 ---
 
@@ -141,7 +202,7 @@ WPS Office 桌面端
 ```bash
 git clone https://github.com/jjchen17/wps-cli.git
 cd wps-cli
-pip install -e ".[dev]"
+pip install -e ".[dev]" -i https://pypi.tuna.tsinghua.edu.cn/simple
 pytest
 ```
 
@@ -152,6 +213,8 @@ src/wps_cli/
 ├── backends/       # COM 后端层 (抽象基类 + WPS 实现)
 └── utils/          # 工具函数
 ```
+
+详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
 

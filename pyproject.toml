@@ -5,7 +5,7 @@ description = "WPS Office 全量 CLI 工具 — 通过 COM 自动化驱动 WPS �
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-authors = [{name = "wps-cli contributors"}]
+authors = [{name = "wps-cli contributors", email = "948881912@qq.com"}]
 keywords = ["wps", "office", "cli", "automation", "com", "word", "excel", "powerpoint", "pdf"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -22,18 +22,25 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "typer>=0.12.0",
-    "rich>=13.0",
-    "pywin32>=306; sys_platform == 'win32'",
+    "typer>=0.12.0,<1.0",
+    "rich>=13.0,<15.0",
+    "pywin32>=306,<400; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0",
-    "pytest-mock>=3.12",
-    "ruff>=0.4",
-    "mypy>=1.10",
+    "pytest>=8.0,<9.0",
+    "pytest-cov>=5.0,<7.0",
+    "pytest-mock>=3.12,<4.0",
+    "ruff>=0.4,<1.0",
+    "mypy>=1.10,<2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/jjchen17/wps-cli"
+Repository = "https://github.com/jjchen17/wps-cli"
+Issues = "https://github.com/jjchen17/wps-cli/issues"
+Changelog = "https://github.com/jjchen17/wps-cli/blob/main/CHANGELOG.md"
 
 [project.scripts]
 wps = "wps_cli.main:app"
@@ -45,13 +52,49 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/wps_cli"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/",
+    "tests/",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "LICENSE",
+]
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+ignore = [
+    "N802",
+    "N818",
+    "B008",
+    "E501",
+    "SIM105",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "N803", "B017", "PT011"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "integration: 需要真实 WPS 环境的集成测试",
+]
+
+[tool.coverage.run]
+source = ["src/wps_cli"]
+omit = ["src/wps_cli/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

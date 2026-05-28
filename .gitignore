@@ -22,3 +22,16 @@ coverage.xml
 *~
 .DS_Store
 Thumbs.db
+
+# 本地 IDE / 工具配置
+.idea/
+.vscode/
+.claude/
+.codex/
+.aider*
+
+# 临时输出
+*.tmp
+*.bak
+out/
+output/
