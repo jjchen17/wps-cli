@@ -38,7 +38,7 @@ jobs:
         run: pytest -m "not integration" --tb=short -q --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=45
       - name: Upload coverage
         if: matrix.python-version == '3.12'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-xml
           path: coverage.xml
@@ -72,7 +72,7 @@ jobs:
       - run: pip install build twine
       - run: python -m build
       - run: python -m twine check dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
