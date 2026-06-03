@@ -66,22 +66,30 @@ def _detect_wps_versions() -> dict[str, str]:
 
 def _print_doctor_text() -> None:
     """人类友好的 doctor 输出"""
+    typer.echo(f"wps-cli {__version__}")
     typer.echo(f"Python: {sys.version.split()[0]}")
     typer.echo(f"平台: {sys.platform}")
 
-    if sys.platform != "win32":
-        typer.echo("错误: 仅支持 Windows", err=True)
-        raise typer.Exit(1)
+    if sys.platform == "win32":
+        try:
+            import win32com.client  # noqa: F401
+        except ImportError as exc:
+            typer.echo(f"错误: pywin32 未安装 — {exc}", err=True)
+            raise typer.Exit(1) from exc
+        typer.echo("pywin32: 已安装")
 
-    try:
-        import win32com.client  # noqa: F401
-    except ImportError as exc:
-        typer.echo(f"错误: pywin32 未安装 — {exc}", err=True)
-        raise typer.Exit(1) from exc
-    typer.echo("pywin32: 已安装")
+        for name, ver in _detect_wps_versions().items():
+            typer.echo(f"WPS {name}: {ver}")
+    else:
+        typer.echo("后端: JS Bridge (Linux)")
+        try:
+            from wps_cli.bridge.client import BridgeClient
+            client = BridgeClient()
+            client.ensure_server()
+            typer.echo("Bridge: 已连接")
+        except Exception as exc:
+            typer.echo(f"Bridge: 未启动 ({exc})")
 
-    for name, ver in _detect_wps_versions().items():
-        typer.echo(f"WPS {name}: {ver}")
     typer.echo("诊断完成")
 
 
