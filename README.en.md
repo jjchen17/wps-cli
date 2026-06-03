@@ -147,7 +147,7 @@ See [SECURITY.md](SECURITY.md) for the full policy.
 ## Architecture
 
 ```
-CLI layer  (Typer)
+CLI layer (Typer)
     │
     ▼
 Service layer
