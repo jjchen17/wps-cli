@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Added — Linux JS Bridge 后端
+- 新增 `backends/wps_js.py`：通过 WPS JS Addon 驱动 WPS Office Linux（已验证 WPS 12.1.2.25882）。
+- 新增 `bridge/` 子系统：asyncio HTTP + WebSocket daemon + WPS JS addon，实现 CLI 与 WPS 进程之间的 IPC 传输层。
+- `main.py` doctor 命令不再报「仅支持 Windows」，Linux 下显示 Bridge 连通状态。
+- 平台 badge 更新为 `Windows | Linux`，README 中英文版同步。
+
 ### Added — 第二轮安全加固
 - 文件扩展名白名单：所有 CLI 命令按应用类型（writer/calc/impress/pdf）拒绝不匹配的扩展名，防止 `wps calc cell-set README.md ...` 这类把任意文件作为工作簿覆盖的攻击。
 - 危险公式黑名单补全：增加 `WEBSERVICE` / `FILTERXML` / `RTD` / `IMPORTDATA` / `IMPORTHTML` / `IMPORTRANGE` / `IMPORTXML` / `IMPORTFEED` / `ENCODEURL` 与对应的 `_xlfn.` 兼容前缀。

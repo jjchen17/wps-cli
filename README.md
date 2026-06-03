@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)](https://python.org)
 [![Commands](https://img.shields.io/badge/commands-36-important)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)]()
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-0078D6)]()
 [![WPS](https://img.shields.io/badge/requires-WPS%20Office%202019%2B-C00000)]()
 [![PyPI](https://img.shields.io/pypi/v/wps-cli)](https://pypi.org/project/wps-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/wps-cli)](https://pypi.org/project/wps-cli/)
@@ -12,7 +12,7 @@
 
 > **不是"所见即所猜"，是所见即所得。** 不模拟文件格式，直接驱动真实的 WPS 引擎。
 
-> **Disclaimer / 免责声明**：wps-cli 是社区维护的非官方项目，与金山办公（Kingsoft Office）**没有任何隶属、授权或赞助关系**。"WPS"、"WPS Office" 是其各自所有者的商标。本项目通过调用本地已安装的 WPS Office COM 自动化接口工作，不分发、不修改、不打包 WPS 二进制。
+> **Disclaimer / 免责声明**：wps-cli 是社区维护的非官方项目，与金山办公（Kingsoft Office）**没有任何隶属、授权或赞助关系**。"WPS"、"WPS Office" 是其各自所有者的商标。本项目通过调用本地已安装的 WPS Office 自动化接口工作（Windows: COM；Linux: JS Bridge，WPS 12.1.2+ 已验证），不分发、不修改、不打包 WPS 二进制。
 
 [English](README.en.md) · [更新日志](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md)
 
@@ -47,7 +47,7 @@
 
 ## 一键安装
 
-**系统要求**：Windows 10/11 · WPS Office 2019+ · Python 3.10+
+**系统要求**：Windows 10/11 或 Linux · WPS Office 2019+ · Python 3.10+
 
 ```bash
 pip install wps-cli
@@ -191,13 +191,13 @@ CLI 层 (Typer)
 业务层 (Service)
     │
     ▼
-COM 后端层 (Backend)
+后端层 (Backend) — Windows: COM | Linux: JS Bridge
     │
     ▼
 WPS Office 桌面端
 ```
 
-三层解耦：CLI 层只做参数解析和输出格式化，业务层通过抽象接口调用后端，后端层封装 COM 细节，可替换为 LibreOffice / WebOffice。
+三层解耦：CLI 层只做参数解析和输出格式化，业务层通过抽象接口调用后端，后端层封装平台差异（Windows COM / Linux JS Bridge），可扩展 LibreOffice / WebOffice 等后端。
 
 ---
 
@@ -214,7 +214,8 @@ pytest
 src/wps_cli/
 ├── cli/            # CLI 命令层 (Typer)
 ├── services/       # 业务层 (Writer/Calc/Impress/PDF/Export)
-├── backends/       # COM 后端层 (抽象基类 + WPS 实现)
+├── backends/       # 后端层 (抽象基类 + Windows COM + Linux JS Bridge)
+├── bridge/         # Linux JS Bridge 子系统 (daemon + addon)
 └── utils/          # 工具函数
 ```
 

@@ -1,5 +1,7 @@
 """路径工具测试 — 重点覆盖路径遍历防护"""
 
+import sys
+
 import pytest
 
 from wps_cli.exceptions import FileNotFoundErrorCli, ValidationError
@@ -66,8 +68,9 @@ class TestEnsureSafeGlob:
     """C-3：glob 路径边界限制"""
 
     def test_absolute_path_rejected(self, tmp_path):
+        pattern = "C:\\Windows\\*.exe" if sys.platform == "win32" else "/etc/*.conf"
         with pytest.raises(ValidationError, match="绝对路径"):
-            ensure_safe_glob("C:\\Windows\\*.exe")
+            ensure_safe_glob(pattern)
 
     def test_unc_rejected(self):
         with pytest.raises(ValidationError, match="UNC"):

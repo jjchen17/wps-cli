@@ -6,9 +6,9 @@
 
 需求：
 
-- Windows 10/11 (COM 自动化测试需要)
-- Python 3.10+
-- WPS Office 2019+
+- Windows 10/11 或 Linux · Python 3.10+ · WPS Office 2019+
+- Windows 开发需要 pywin32（COM 自动化）
+- Linux 开发需要 WPS 12.1.2+（已安装的 WPS Office Linux 版）
 
 安装：
 
@@ -47,12 +47,12 @@ pre-commit install
 - **小文件**：单文件 200–400 行最佳，超过 800 行考虑拆分。
 - **错误处理**：抛 `WpsCliError` 子类，附带 `suggestion` 与 `context`，避免裸 `except Exception`。
 - **路径输入**：CLI 层必须经过 `ensure_safe_input_path` / `ensure_safe_output_path` 校验，禁止裸 `Path(arg)` 透传到 Service 层。
-- **COM 调用**：所有 `Documents.Open` / `Workbooks.Open` / `Presentations.Open` 必须显式传 `ReadOnly`、`AddToRecentFiles=False` 等安全参数。
+- **平台差异**：所有 `Documents.Open` / `Workbooks.Open` / `Presentations.Open` 必须显式传 `ReadOnly`、`AddToRecentFiles=False` 等安全参数。Linux 后端通过 JS Bridge 与 WPS 通信，调试时需先启动 bridge daemon（`python -m wps_cli.bridge.server`）。
 
 ## 测试
 
 - 单元测试用 `MockComBackend`，无需真实 WPS 环境。
-- 集成测试需要本地有 WPS 安装；CI 在 `windows-latest` 上跑。
+- 集成测试需要本地有 WPS 安装；CI 在 `ubuntu-latest` 与 `windows-latest` 上跑。
 - 涉及 COM 行为的测试请加 `@pytest.mark.integration` 标记。
 - 新增公开 API 必须配对单元测试。
 

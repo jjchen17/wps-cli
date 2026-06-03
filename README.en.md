@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)](https://python.org)
 [![Commands](https://img.shields.io/badge/commands-36-important)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)]()
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-0078D6)]()
 [![WPS](https://img.shields.io/badge/requires-WPS%20Office%202019%2B-C00000)]()
 [![PyPI](https://img.shields.io/pypi/v/wps-cli)](https://pypi.org/project/wps-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/wps-cli)](https://pypi.org/project/wps-cli/)
@@ -12,7 +12,7 @@ Drive WPS Office from the terminal — real formatting, real layout, 36 commands
 
 > Not "guess what you see" — **what you see is what you get**. Don't simulate the file format, just drive the actual WPS engine.
 
-> **Disclaimer**: wps-cli is an unofficial, community-driven project. It is **not affiliated with, endorsed by, or sponsored by** Kingsoft Office Software. "WPS" and "WPS Office" are trademarks of their respective owners. This project drives a locally-installed WPS Office via its COM automation interface; it does not bundle, redistribute, or modify any WPS Office binaries.
+> **Disclaimer**: wps-cli is an unofficial, community-driven project. It is **not affiliated with, endorsed by, or sponsored by** Kingsoft Office Software. "WPS" and "WPS Office" are trademarks of their respective owners. This project drives a locally-installed WPS Office via its automation interface (Windows: COM; Linux: JS Bridge, tested with WPS 12.1.2+); it does not bundle, redistribute, or modify any WPS Office binaries.
 
 [中文](README.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
@@ -47,7 +47,7 @@ When you set "Heiti, size 3, bold," it actually executes that operation inside W
 
 ## Install
 
-**Requirements**: Windows 10/11 · WPS Office 2019+ · Python 3.10+
+**Requirements**: Windows 10/11 or Linux · WPS Office 2019+ · Python 3.10+
 
 ```bash
 pip install wps-cli
@@ -147,19 +147,19 @@ See [SECURITY.md](SECURITY.md) for the full policy.
 ## Architecture
 
 ```
-CLI layer (Typer)
+CLI layer  (Typer)
     │
     ▼
 Service layer
     │
     ▼
-COM backend (abstract base + WPS impl)
+Backend layer — Windows: COM | Linux: JS Bridge
     │
     ▼
 WPS Office desktop
 ```
 
-The COM backend is pluggable — replacing it with a LibreOffice/WebOffice backend is on the roadmap.
+The backend is pluggable — replacing it with a LibreOffice/WebOffice backend is on the roadmap.
 
 ---
 

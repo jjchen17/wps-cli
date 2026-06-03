@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import pytest
 from typer.testing import CliRunner
@@ -165,12 +166,13 @@ class TestExportBatchValidation:
     """export batch 的 glob 安全性"""
 
     def test_absolute_glob_rejected(self, tmp_path):
+        pattern = "C:\\*.docx" if sys.platform == "win32" else "/etc/*.conf"
         result = runner.invoke(
             app,
             [
                 "export",
                 "batch",
-                "C:\\*.docx",
+                pattern,
                 "--to",
                 "pdf",
                 "--output-dir",

@@ -1,5 +1,6 @@
 """ExportService 单元测试"""
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -46,8 +47,9 @@ class TestExportService:
 
     def test_batch_rejects_absolute_glob(self, tmp_path):
         svc = _make_svc()
+        pattern = "C:\\*.docx" if sys.platform == "win32" else "/etc/*.conf"
         with pytest.raises(ValidationError, match="绝对路径"):
-            svc.batch_convert("C:\\*.docx", "pdf", tmp_path)
+            svc.batch_convert(pattern, "pdf", tmp_path)
 
     def test_batch_rejects_unc_glob(self, tmp_path):
         svc = _make_svc()
