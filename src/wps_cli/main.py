@@ -83,12 +83,10 @@ def _print_doctor_text() -> None:
     else:
         typer.echo("后端: JS Bridge (Linux)")
         try:
-            from wps_cli.bridge.client import BridgeClient
-            client = BridgeClient()
-            client.ensure_server()
-            typer.echo("Bridge: 已连接")
-        except Exception as exc:
-            typer.echo(f"Bridge: 未启动 ({exc})")
+            import websockets  # noqa: F401
+            typer.echo("websockets: 已安装")
+        except ImportError:
+            typer.echo("websockets: 未安装")
 
     typer.echo("诊断完成")
 
