@@ -84,6 +84,7 @@ def _print_doctor_text() -> None:
         typer.echo("后端: JS Bridge (Linux)")
         try:
             import websockets  # noqa: F401
+
             typer.echo("websockets: 已安装")
         except ImportError:
             typer.echo("websockets: 未安装")

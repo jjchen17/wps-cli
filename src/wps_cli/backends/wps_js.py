@@ -32,9 +32,7 @@ class WpsJsBackend(ComBackend):
         ``app_type`` 仅用于校验：确认对应 WPS 组件已连上 bridge。
         """
         if app_type not in ("writer", "calc", "impress", "pdf"):
-            raise ValueError(
-                f"不支持的应用类型: {app_type}，可选: writer, calc, impress, pdf"
-            )
+            raise ValueError(f"不支持的应用类型: {app_type}，可选: writer, calc, impress, pdf")
         try:
             self._client.ensure_server()
         except BridgeError as exc:

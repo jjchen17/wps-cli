@@ -28,9 +28,7 @@ class TestWpsJsBackend:
 
     def test_connect_bridge_unavailable(self) -> None:
         backend = WpsJsBackend()
-        backend._client.ensure_server = Mock(
-            side_effect=BridgeError("Cannot reach bridge")
-        )
+        backend._client.ensure_server = Mock(side_effect=BridgeError("Cannot reach bridge"))
         with pytest.raises(WpsNotFoundError, match="writer"):
             backend.connect("writer")
 
@@ -41,9 +39,7 @@ class TestWpsJsBackend:
 
     def test_is_alive_false(self) -> None:
         backend = WpsJsBackend()
-        backend._client.ensure_server = Mock(
-            side_effect=BridgeError("down")
-        )
+        backend._client.ensure_server = Mock(side_effect=BridgeError("down"))
         assert backend.is_alive(None) is False
 
     def test_disconnect_noop(self) -> None:

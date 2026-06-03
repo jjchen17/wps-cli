@@ -22,7 +22,7 @@ class _FakeResponse:
     def read(self) -> bytes:
         return self._data
 
-    def __enter__(self) -> "_FakeResponse":
+    def __enter__(self) -> _FakeResponse:
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -55,17 +55,21 @@ class TestBridgeClient:
         client = BridgeClient()
         client.ensure_server = Mock()
 
-        with patch("urllib.request.urlopen", _fake_urlopen_error):
-            with pytest.raises(BridgeError, match="WPS not connected"):
-                client.send("writer.info", {"path": "/tmp/test.docx"})
+        with (
+            patch("urllib.request.urlopen", _fake_urlopen_error),
+            pytest.raises(BridgeError, match="WPS not connected"),
+        ):
+            client.send("writer.info", {"path": "/tmp/test.docx"})
 
     def test_send_connection_refused(self) -> None:
         client = BridgeClient()
         client.ensure_server = Mock()
 
-        with patch("urllib.request.urlopen", side_effect=OSError("Connection refused")):
-            with pytest.raises(BridgeError, match="Connection refused"):
-                client.send("writer.info")
+        with (
+            patch("urllib.request.urlopen", side_effect=OSError("Connection refused")),
+            pytest.raises(BridgeError, match="Connection refused"),
+        ):
+            client.send("writer.info")
 
     def test_send_invalid_json_response(self) -> None:
         client = BridgeClient()
@@ -74,14 +78,18 @@ class TestBridgeClient:
         class BadResponse:
             def read(self) -> bytes:
                 return b"not json"
-            def __enter__(self) -> "BadResponse":
+
+            def __enter__(self) -> BadResponse:
                 return self
+
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with patch("urllib.request.urlopen", return_value=BadResponse()):
-            with pytest.raises(BridgeError, match="Invalid bridge server response"):
-                client.send("writer.info")
+        with (
+            patch("urllib.request.urlopen", return_value=BadResponse()),
+            pytest.raises(BridgeError, match="Invalid bridge server response"),
+        ):
+            client.send("writer.info")
 
     def test_send_uses_unique_request_ids(self) -> None:
         """每次 send 应该生成不同的 request id"""
@@ -129,6 +137,8 @@ class TestBridgeClientTimeout:
         client = BridgeClient()
         client.ensure_server = Mock()
 
-        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("timed out")):
-            with pytest.raises(BridgeError, match="timed out"):
-                client.send("writer.info", timeout=1)
+        with (
+            patch("urllib.request.urlopen", side_effect=urllib.error.URLError("timed out")),
+            pytest.raises(BridgeError, match="timed out"),
+        ):
+            client.send("writer.info", timeout=1)
