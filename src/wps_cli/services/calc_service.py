@@ -29,16 +29,30 @@ from wps_cli.exceptions import ValidationError
 from wps_cli.services.session_manager import SessionManager
 
 
+def _col_letter(col: int) -> str:
+    """将列号转换为字母 (1→A, 2→B, ..., 27→AA)"""
+    result = ""
+    while col > 0:
+        col, rem = divmod(col - 1, 26)
+        result = chr(65 + rem) + result
+    return result
+
+
 def _check_formula_safe(formula: str) -> None:
     """阻止已知的危险公式函数
 
     在 Excel/WPS Calc 中, ``=SHELL()`` / ``=DDE()`` / ``=HYPERLINK()`` 等
     公式可以触发命令执行或外联请求。AI Agent 场景下攻击者可以通过 prompt
     诱导生成恶意公式，因此必须阻断。
+
+    注意：移除所有 Unicode 空白字符（含换行符、制表符、全角空格等），
+    防止 ``=SHELL\\n("cmd")`` 这种换行绕过攻击。
     """
+    import re
+
     if not isinstance(formula, str):
         return
-    upper = formula.upper().replace(" ", "")
+    upper = re.sub(r"\s+", "", formula.upper())
     if not upper.startswith("="):
         raise ValidationError(
             f"公式必须以 '=' 开头: {formula!r}",
@@ -268,3 +282,126 @@ class CalcService:
         else:
             wb.Save()
         return Path(wb.FullName)
+
+    # ── 语义视图与诊断 ──
+
+    def summarize(self, app: Any) -> dict:
+        """生成工作簿结构摘要（L1 语义视图）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+        返回包含工作表列表、图表、命名区域、数据预览等结构化信息的 dict。
+        """
+        wb = app.ActiveWorkbook
+
+        # 元数据
+        metadata = {
+            "title": str(wb.BuiltInDocumentProperties("Title").Value or ""),
+            "author": str(wb.BuiltInDocumentProperties("Author").Value or ""),
+            "sheets": wb.Sheets.Count,
+        }
+
+        # 工作表概览
+        sheets = []
+        for i in range(1, wb.Sheets.Count + 1):
+            ws = wb.Sheets(i)
+            sheet_info: dict = {
+                "index": i,
+                "name": ws.Name,
+            }
+            try:
+                used = ws.UsedRange
+                if used is not None:
+                    last_row = used.Rows.Count
+                    last_col = used.Columns.Count
+                    sheet_info["used_rows"] = last_row
+                    sheet_info["used_cols"] = last_col
+                    sheet_info["used_range"] = (
+                        f"A1:{_col_letter(last_col)}{last_row}"
+                    )
+            except Exception:
+                pass
+
+            # 数据预览（前5行）
+            try:
+                preview = []
+                used = ws.UsedRange
+                if used is not None:
+                    preview_rows = min(used.Rows.Count, 5)
+                    preview_cols = min(used.Columns.Count, 10)
+                    for r in range(1, preview_rows + 1):
+                        row_data = []
+                        for c in range(1, preview_cols + 1):
+                            try:
+                                val = used.Cells(r, c).Value
+                                row_data.append(str(val) if val is not None else "")
+                            except Exception:
+                                row_data.append("")
+                        preview.append(row_data)
+                sheet_info["preview"] = preview
+            except Exception:
+                pass
+
+            sheets.append(sheet_info)
+
+        # 图表
+        charts = []
+        for i in range(1, wb.Sheets.Count + 1):
+            ws = wb.Sheets(i)
+            try:
+                for j in range(1, ws.ChartObjects().Count + 1):
+                    co = ws.ChartObjects(j)
+                    try:
+                        chart_title = co.Chart.ChartTitle.Text if co.Chart.HasTitle else ""
+                    except Exception:
+                        chart_title = ""
+                    charts.append(
+                        {
+                            "sheet": ws.Name,
+                            "index": j,
+                            "title": chart_title,
+                        }
+                    )
+            except Exception:
+                pass
+
+        # 命名区域
+        names = []
+        for i in range(1, wb.Names.Count + 1):
+            try:
+                nm = wb.Names(i)
+                names.append(
+                    {
+                        "name": nm.Name,
+                        "refers_to": str(nm.RefersTo),
+                    }
+                )
+            except Exception:
+                pass
+
+        return {
+            "metadata": metadata,
+            "sheets": sheets,
+            "charts": charts,
+            "names": names,
+        }
+
+    def diagnose(self, app: Any) -> list[dict]:
+        """诊断工作簿问题（参考 OfficeCLI view issues）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+        """
+        from wps_cli.services.document_diagnostics import DocumentDiagnostics
+
+        diag = DocumentDiagnostics()
+        issues = diag.diagnose_calc(app)
+        return [
+            {
+                "severity": i.severity,
+                "category": i.category,
+                "location": i.location,
+                "message": i.message,
+                "suggestion": i.suggestion,
+            }
+            for i in issues
+        ]

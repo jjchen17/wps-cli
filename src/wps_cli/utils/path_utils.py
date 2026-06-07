@@ -164,6 +164,6 @@ def redact_path(text: str) -> str:
     text = re.sub(r"\\\\[^\s'\"]+", "<unc-path>", text)
     # Windows 盘符路径 C:\... 或 c:/...
     text = re.sub(r"[A-Za-z]:[\\/][^\s'\"]*", "<path>", text)
-    # 相对路径 ./xxx 或 ../xxx
-    text = re.sub(r"(?:^|(?<=[\s'\"(]))\.{1,2}[\\/][^\s'\")]*", "<rel-path>", text)
+    # 相对路径 ./xxx 或 ../xxx（允许空格在路径中）
+    text = re.sub(r"(?:^|(?<=[\s'\"(]))\.{1,2}[\\/][^\s'\")]*(?:\s[^\s'\")]*)*", "<rel-path>", text)
     return text

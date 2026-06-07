@@ -198,3 +198,110 @@ class ImpressService:
         pres = app.ActivePresentation
         pres.SaveAs(str(output), PP_SAVE_AS_PDF)
         return output
+
+    # ── 语义视图与诊断 ──
+
+    def summarize(self, app: Any) -> dict:
+        """生成演示文稿结构摘要（L1 语义视图）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+        返回包含幻灯片概览、切换效果、备注统计等结构化信息的 dict。
+        """
+        pres = app.ActivePresentation
+
+        # 元数据
+        metadata = {
+            "title": str(pres.BuiltInDocumentProperties("Title").Value or ""),
+            "author": str(pres.BuiltInDocumentProperties("Author").Value or ""),
+            "slides": pres.Slides.Count,
+        }
+
+        # 幻灯片概览
+        slides = []
+        total_shapes = 0
+        total_notes = 0
+        for i in range(1, pres.Slides.Count + 1):
+            sl = pres.Slides(i)
+
+            # 标题
+            title = ""
+            shape_count = sl.Shapes.Count
+            total_shapes += shape_count
+
+            for shape in sl.Shapes:
+                try:
+                    if (
+                        shape.HasTextFrame
+                        and hasattr(shape, "PlaceholderFormat")
+                        and shape.PlaceholderFormat.Type == PP_PLACEHOLDER_TITLE
+                    ):
+                        title = shape.TextFrame.TextRange.Text.strip()[:80]
+                        break
+                except Exception:
+                    continue
+
+            # 备注
+            has_notes = False
+            notes_text = ""
+            try:
+                notes_text = (
+                    sl.NotesPage.Shapes.Placeholders(PP_PLACEHOLDER_BODY)
+                    .TextFrame.TextRange.Text.strip()
+                )
+                has_notes = bool(notes_text)
+                if has_notes:
+                    total_notes += 1
+            except Exception:
+                pass
+
+            # 切换效果
+            transition_info = {}
+            try:
+                tr = sl.SlideShowTransition
+                transition_info = {
+                    "effect": tr.EntryEffect,
+                    "duration": tr.Duration,
+                }
+            except Exception:
+                pass
+
+            slides.append(
+                {
+                    "index": i,
+                    "title": title,
+                    "shapes": shape_count,
+                    "has_notes": has_notes,
+                    "notes_preview": notes_text[:100] if has_notes else "",
+                    "transition": transition_info,
+                }
+            )
+
+        return {
+            "metadata": metadata,
+            "slides": slides,
+            "stats": {
+                "total_shapes": total_shapes,
+                "slides_with_notes": total_notes,
+            },
+        }
+
+    def diagnose(self, app: Any) -> list[dict]:
+        """诊断演示文稿问题（参考 OfficeCLI view issues）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+        """
+        from wps_cli.services.document_diagnostics import DocumentDiagnostics
+
+        diag = DocumentDiagnostics()
+        issues = diag.diagnose_impress(app)
+        return [
+            {
+                "severity": i.severity,
+                "category": i.category,
+                "location": i.location,
+                "message": i.message,
+                "suggestion": i.suggestion,
+            }
+            for i in issues
+        ]

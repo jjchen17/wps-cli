@@ -128,6 +128,8 @@ DANGEROUS_FORMULA_TOKENS: tuple[str, ...] = (
     "EXECUTE(",
     "CALL(",
     "REGISTER(",
+    # 间接引用（可用于混淆绕过）
+    "INDIRECT(",
     # 外联/数据获取类（数据外泄、SSRF）
     "HYPERLINK(",
     "WEBSERVICE(",

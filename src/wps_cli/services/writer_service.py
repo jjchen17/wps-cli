@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -263,9 +264,123 @@ class WriterService:
     def page_break(self, app: Any) -> None:
         app.Selection.InsertBreak(WD_PAGE_BREAK)
 
+    # ── 模板合并 ──
+
+    @staticmethod
+    def template_fill(app: Any, data: dict[str, str]) -> dict:
+        """替换文档中所有 {{key}} 占位符为实际值。
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+        """
+        from wps_cli.services.template_engine import TemplateEngine
+
+        engine = TemplateEngine()
+        return engine.fill(app, data)
+
     # ── 导出 ──
 
     def export_pdf(self, app: Any, output: Path) -> Path:
         doc = app.ActiveDocument
         doc.ExportAsFixedFormat(str(output), WD_FORMAT_PDF)
         return output
+
+    # ── 语义视图与诊断 ──
+
+    def summarize(self, app: Any) -> dict:
+        """生成文档结构摘要（L1 语义视图）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+        返回包含标题层级、表格、图片等结构化信息的 dict，便于 AI Agent 理解文档全貌。
+        """
+        doc = app.ActiveDocument
+
+        # 元数据
+        metadata = {
+            "title": str(doc.BuiltInDocumentProperties("Title").Value or ""),
+            "author": str(doc.BuiltInDocumentProperties("Author").Value or ""),
+            "pages": doc.ComputeStatistics(WD_STATISTIC_PAGES),
+            "words": doc.ComputeStatistics(WD_STATISTIC_WORDS),
+            "paragraphs": doc.Paragraphs.Count,
+        }
+
+        # 标题
+        headings = []
+        for p in doc.Paragraphs:
+            try:
+                style_name = str(p.Style)
+                if "标题" in style_name or "Heading" in style_name or "heading" in style_name:
+                    headings.append(
+                        {
+                            "level": self._heading_level(style_name),
+                            "text": p.Range.Text.strip()[:100],
+                            "page": p.Range.Information(3),  # wdActiveEndPageNumber
+                        }
+                    )
+            except Exception:
+                pass
+
+        # 表格
+        tables = []
+        for i in range(1, doc.Tables.Count + 1):
+            try:
+                t = doc.Tables(i)
+                tables.append(
+                    {
+                        "index": i,
+                        "rows": t.Rows.Count,
+                        "cols": t.Columns.Count,
+                    }
+                )
+            except Exception:
+                pass
+
+        # 图片
+        images = []
+        for i in range(1, doc.InlineShapes.Count + 1):
+            try:
+                shape = doc.InlineShapes(i)
+                images.append(
+                    {
+                        "index": i,
+                        "type": "InlineShape",
+                        "width": shape.Width,
+                        "height": shape.Height,
+                        "has_alt_text": bool(shape.AlternativeText),
+                    }
+                )
+            except Exception:
+                pass
+
+        return {
+            "metadata": metadata,
+            "headings": headings,
+            "tables": tables,
+            "images": images,
+        }
+
+    def diagnose(self, app: Any) -> list[dict]:
+        """诊断文档问题（参考 OfficeCLI view issues）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+        """
+        from wps_cli.services.document_diagnostics import DocumentDiagnostics
+
+        diag = DocumentDiagnostics()
+        issues = diag.diagnose_writer(app)
+        return [
+            {
+                "severity": i.severity,
+                "category": i.category,
+                "location": i.location,
+                "message": i.message,
+                "suggestion": i.suggestion,
+            }
+            for i in issues
+        ]
+
+    @staticmethod
+    def _heading_level(style_name: str) -> int:
+        """从样式名提取标题级别"""
+        m = re.search(r"(\d+)", style_name)
+        return int(m.group(1)) if m else 1

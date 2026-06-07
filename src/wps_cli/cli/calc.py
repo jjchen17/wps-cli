@@ -249,3 +249,84 @@ def export_csv(
         success({"path": str(result)}, command=cmd, json_mode=json_output)
     except Exception as e:
         handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── 语义视图与路径定位（Phase 4）──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command("view")
+def view(
+    file: str = typer.Argument(..., help="文件路径"),
+    view_type: str = typer.Argument("summary", help="视图类型: summary/issues"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """工作簿语义视图（参考 OfficeCLI L1 Read）
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    支持三种视图:
+      summary  — 工作簿结构摘要（工作表/图表/命名区域）
+      issues   — 文档诊断（公式错误/隐藏行列）
+      sheets   — 工作表列表概览
+    """
+    cmd = f"calc.view_{view_type}"
+    try:
+        path = _safe_calc_input(file)
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, path, readonly=True)
+            if view_type == "summary":
+                result = svc.summarize(session.app)
+            elif view_type == "issues":
+                result = svc.diagnose(session.app)
+            elif view_type == "sheets":
+                result = svc.sheet_list(session.app)
+            else:
+                from wps_cli.exceptions import ValidationError
+
+                raise ValidationError(
+                    f"不支持的视图类型: {view_type}",
+                    suggestion="可选: summary, issues, sheets",
+                )
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command()
+def get(
+    file: str = typer.Argument(..., help="文件路径"),
+    path: str = typer.Argument(..., help="元素路径，如 /sheet[\"Sheet1\"]/cell[\"A1\"]"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """通过路径获取工作簿元素值
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    Examples:
+        wps calc get data.xlsx '/sheet["Sheet1"]/cell["A1"]'
+        wps calc get data.xlsx '/sheet["Sheet1"]/range["A1:B10"]'
+        wps calc get data.xlsx '$Sheet1:A1'
+    """
+    cmd = "calc.get"
+    try:
+        file_path = _safe_calc_input(file)
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, file_path, readonly=True)
+            from wps_cli.services.path_resolver import PathResolver
+
+            resolver = PathResolver()
+            obj = resolver.resolve(session.app, "calc", path)
+            value = obj.Value if hasattr(obj, "Value") else str(obj)
+            result = {"path": path, "value": value}
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)

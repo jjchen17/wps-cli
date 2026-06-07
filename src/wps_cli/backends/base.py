@@ -42,15 +42,20 @@ class ComBackend(ABC):
         """对应用进程做安全加固：禁用宏自动执行、关闭警告弹窗等
 
         默认实现尝试设置 AutomationSecurity = msoAutomationSecurityForceDisable，
-        失败时静默忽略（部分组件可能不支持该属性）。
+        失败时记录警告日志（宏保护可能缺失，不可静默忽略）。
         """
+        import logging
+
+        _logger = logging.getLogger("wps_cli")
         try:
             from wps_cli.consts import MSO_AUTOMATION_SECURITY_FORCE_DISABLE
 
             app.AutomationSecurity = MSO_AUTOMATION_SECURITY_FORCE_DISABLE
-        except Exception:
-            pass
+        except Exception as exc:
+            _logger.warning(
+                "无法设置 AutomationSecurity（宏自动执行未被禁用）: %s", exc
+            )
         try:
             app.DisplayAlerts = False
-        except Exception:
-            pass
+        except Exception as exc:
+            _logger.debug("无法设置 DisplayAlerts: %s", exc)

@@ -2,8 +2,8 @@
 
 import json
 
-import click
 import pytest
+import typer
 
 from wps_cli.cli.common import handle_error, success
 from wps_cli.exceptions import ValidationError, WpsNotFoundError
@@ -30,7 +30,7 @@ class TestSuccessOutput:
 
 class TestErrorOutput:
     def test_validation_error_exit_code(self, capsys):
-        with pytest.raises(click.exceptions.Exit) as exc:
+        with pytest.raises(typer.Exit) as exc:
             handle_error(
                 ValidationError("bad arg"),
                 command="calc.cell_set",
@@ -46,7 +46,7 @@ class TestErrorOutput:
         assert payload["error"]["code"] == 50
 
     def test_wps_not_found_includes_suggestion(self, capsys):
-        with pytest.raises(click.exceptions.Exit) as exc:
+        with pytest.raises(typer.Exit) as exc:
             handle_error(WpsNotFoundError("writer"), command="writer.new", json_mode=True)
         assert exc.value.exit_code == 10
         captured = capsys.readouterr()
@@ -55,7 +55,7 @@ class TestErrorOutput:
         assert "doctor" in payload["error"]["suggestion"]
 
     def test_generic_exception_falls_back(self, capsys):
-        with pytest.raises(click.exceptions.Exit) as exc:
+        with pytest.raises(typer.Exit) as exc:
             handle_error(RuntimeError("boom"), command="x", json_mode=True)
         assert exc.value.exit_code == 1
         captured = capsys.readouterr()
@@ -64,7 +64,7 @@ class TestErrorOutput:
 
     def test_path_redaction_in_error(self, capsys):
         err = ValidationError("failed to open C:\\Users\\alice\\secret.docx")
-        with pytest.raises(click.exceptions.Exit):
+        with pytest.raises(typer.Exit):
             handle_error(err, command="x", json_mode=True)
         captured = capsys.readouterr()
         payload = _read_json(captured)

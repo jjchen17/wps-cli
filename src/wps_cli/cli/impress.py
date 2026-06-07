@@ -219,3 +219,82 @@ def export_pdf(
         success({"path": str(out_path)}, command=cmd, json_mode=json_output)
     except Exception as e:
         handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── 语义视图与路径定位（Phase 4）──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command("view")
+def view(
+    file: str = typer.Argument(..., help="文件路径"),
+    view_type: str = typer.Argument("summary", help="视图类型: summary/issues/slides"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """演示文稿语义视图（参考 OfficeCLI L1 Read）
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    支持三种视图:
+      summary  — 演示文稿结构摘要（幻灯片/切换/备注）
+      issues   — 文档诊断（文本溢出/字体/图片/切换时间）
+      slides   — 幻灯片列表概览
+    """
+    cmd = f"impress.view_{view_type}"
+    try:
+        path = _safe_impress_input(file)
+        svc = _get_service()
+        session = _open_pres(svc, path, readonly=True)
+        try:
+            if view_type == "summary":
+                result = svc.summarize(session.app)
+            elif view_type == "issues":
+                result = svc.diagnose(session.app)
+            elif view_type == "slides":
+                result = svc.slide_list(session.app)
+            else:
+                from wps_cli.exceptions import ValidationError
+
+                raise ValidationError(
+                    f"不支持的视图类型: {view_type}",
+                    suggestion="可选: summary, issues, slides",
+                )
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command()
+def get(
+    file: str = typer.Argument(..., help="文件路径"),
+    path: str = typer.Argument(..., help="元素路径，如 /slide[1]/shape[2]"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """通过路径获取演示文稿元素内容
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    Examples:
+        wps impress get pres.pptx "/slide[1]/shape[2]"
+        wps impress get pres.pptx "/slide[1]/shape[2]/text[1]"
+        wps impress get pres.pptx "/slide[3]/notes"
+    """
+    cmd = "impress.get"
+    try:
+        file_path = _safe_impress_input(file)
+        svc = _get_service()
+        session = _open_pres(svc, file_path, readonly=True)
+        try:
+            from wps_cli.services.path_resolver import PathResolver
+
+            resolver = PathResolver()
+            obj = resolver.resolve(session.app, "impress", path)
+            content = str(obj.Text if hasattr(obj, "Text") else obj)
+            result = {"path": path, "content": content}
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)

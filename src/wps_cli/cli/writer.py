@@ -263,3 +263,118 @@ def style_apply(
         success({"preset": preset}, command=cmd, json_mode=json_output)
     except Exception as e:
         handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command()
+def merge(
+    file: str = typer.Argument(..., help="模板文档路径"),
+    data: str = typer.Option(..., "--data", "-d", help='JSON 数据，如 \'{"name":"张三"}\''),
+    output: str = typer.Option("", "--output", "-o", help="输出路径（默认覆盖原文件）"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """模板合并：将 {{key}} 占位符替换为实际值
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    Examples:
+        wps writer merge template.docx --data '{"name":"张三","date":"2026-06-07"}' -o output.docx
+    """
+    cmd = "writer.merge"
+    try:
+        path = _safe_writer_input(file)
+        try:
+            parsed = json_mod.loads(data)
+        except json_mod.JSONDecodeError as exc:
+            raise ValidationError(f"--data 必须是合法 JSON: {exc}") from exc
+        if not isinstance(parsed, dict):
+            raise ValidationError("--data 必须是 JSON 对象（键值对）")
+        if not all(isinstance(v, str) for v in parsed.values()):
+            raise ValidationError("--data 中所有值必须是字符串类型")
+        svc = _get_service()
+        session = svc.open_document(path)
+        try:
+            result = svc.template_fill(session.app, parsed)
+            out_path = ensure_safe_output_path(output) if output else path
+            svc.save(session.app, out_path)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── 语义视图与路径定位（Phase 4）──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command("view")
+def view(
+    file: str = typer.Argument(..., help="文档路径"),
+    view_type: str = typer.Argument("summary", help="视图类型: summary/issues/outline"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """文档语义视图（参考 OfficeCLI L1 Read）
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    支持三种视图:
+      summary  — 文档结构摘要（标题/表格/图片）
+      issues   — 文档诊断（字体/布局/图片/样式问题）
+      outline  — 纯标题大纲
+    """
+    cmd = f"writer.view_{view_type}"
+    try:
+        path = _safe_writer_input(file)
+        svc = _get_service()
+        session = svc.open_document(path, readonly=True)
+        try:
+            if view_type == "summary":
+                result = svc.summarize(session.app)
+            elif view_type == "issues":
+                result = svc.diagnose(session.app)
+            elif view_type == "outline":
+                result = svc.summarize(session.app)["headings"]
+            else:
+                raise ValidationError(
+                    f"不支持的视图类型: {view_type}",
+                    suggestion="可选: summary, issues, outline",
+                )
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command()
+def get(
+    file: str = typer.Argument(..., help="文档路径"),
+    path: str = typer.Argument(..., help="元素路径，如 /section[1]/paragraph[3]"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """通过路径获取文档元素内容
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    Examples:
+        wps writer get doc.docx "/section[1]/paragraph[3]"
+        wps writer get doc.docx "/section[1]/table[2]"
+        wps writer get doc.docx "/body"
+    """
+    cmd = "writer.get"
+    try:
+        file_path = _safe_writer_input(file)
+        svc = _get_service()
+        session = svc.open_document(file_path, readonly=True)
+        try:
+            from wps_cli.services.path_resolver import PathResolver
+
+            resolver = PathResolver()
+            obj = resolver.resolve(session.app, "writer", path)
+            content = str(obj.Text if hasattr(obj, "Text") else obj)
+            result = {"path": path, "content": content}
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)

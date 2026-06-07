@@ -44,6 +44,7 @@ Changelog = "https://github.com/jjchen17/wps-cli/blob/main/CHANGELOG.md"
 
 [project.scripts]
 wps = "wps_cli.main:app"
+wps-mcp = "wps_cli.mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]

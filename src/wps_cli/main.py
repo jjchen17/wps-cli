@@ -7,7 +7,7 @@ import sys
 import typer
 
 from wps_cli import __version__
-from wps_cli.cli import calc, export, impress, pdf, writer
+from wps_cli.cli import calc, export, impress, install_cmd, mcp_cmd, pdf, resident, writer
 
 app = typer.Typer(
     name="wps",
@@ -20,6 +20,9 @@ app.add_typer(calc.app, name="calc", help="Excel 电子表格操作")
 app.add_typer(impress.app, name="impress", help="PPT 演示文稿操作")
 app.add_typer(pdf.app, name="pdf", help="PDF 文档操作")
 app.add_typer(export.app, name="export", help="格式转换与导出")
+app.add_typer(resident.app, name="resident", help="驻留模式管理")
+app.add_typer(mcp_cmd.app, name="mcp", help="MCP 服务器管理")
+app.add_typer(install_cmd.app, name="install", help="AI 工具集成安装")
 
 
 @app.command()
