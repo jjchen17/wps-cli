@@ -41,7 +41,7 @@
 |---|---|---|
 | **100% 格式保真** | 不是解析文件，是直接指挥 WPS 引擎干活 | 所见即所得，不是所见即所猜 |
 | **AI Agent 原生支持** | 所有命令支持 `--json` 输出，统一 schema | 天生适配 LLM Agent 和自动化流水线 |
-| **一把梭四件套** | Writer / Calc / Impress / PDF，36 个命令 | 办公自动化一个工具全搞定 |
+| **一把梭四件套** | Writer / Calc / Impress / PDF，56 条命令 | 办公自动化一个工具全搞定 |
 
 ---
 
@@ -122,7 +122,7 @@ wps
 │   ├── convert
 │   └── batch
 ├── resident        ★ 驻留模式：保持 COM 进程存活，加速连续操作
-│   ├── start / stop / sessions
+│   ├── start / stop / status / sessions
 │   └── open / close
 ├── mcp             ★ MCP 服务器：供 AI Agent 通过 JSON-RPC 调用
 │   ├── serve / install / status

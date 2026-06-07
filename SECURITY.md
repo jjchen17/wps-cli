@@ -38,7 +38,9 @@ wps-cli 在每次连接 WPS 进程时自动应用以下加固，无需用户配�
 - `SHELL` / `EXEC` / `CALL` — 命令执行
 - `DDE` / `DDEAUTO` — DDE 协议命令执行
 - `REGISTER` — 加载外部 DLL
-- `HYPERLINK` — 数据外泄
+- `HYPERLINK` / `WEBSERVICE` / `FILTERXML` / `ENCODEURL` — 数据外泄/SSRF
+- `RTD` / `IMPORTDATA` / `IMPORTHTML` / `IMPORTRANGE` / `IMPORTXML` / `IMPORTFEED` — 外部数据获取
+- `INDIRECT` — 间接引用（可用于混淆绕过）
 
 `calc cell-set` 拒绝以 `=` 开头的值，避免攻击者通过 `cell-set` 绕过 `cell-formula` 的校验。
 

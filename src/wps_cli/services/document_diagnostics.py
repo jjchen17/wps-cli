@@ -14,6 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from wps_cli.services.calc_service import _col_letter
+
 
 @dataclass
 class Issue:
@@ -435,12 +437,3 @@ class DocumentDiagnostics:
                 )
         except Exception:
             pass
-
-
-def _col_letter(col: int) -> str:
-    """将列号转换为字母 (1→A, 2→B, ..., 27→AA)"""
-    result = ""
-    while col > 0:
-        col, rem = divmod(col - 1, 26)
-        result = chr(65 + rem) + result
-    return result

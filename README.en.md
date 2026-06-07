@@ -82,13 +82,17 @@ wps export convert budget.xlsx pdf
 ```
 wps
 ├── writer    Word docs    (new, info, replace, count, table-insert, table-get,
-│                            image-insert, page-setup, style-apply, export-pdf)
+│                            image-insert, page-setup, style-apply, export-pdf,
+│                            merge, view, get)
 ├── calc      Excel        (new, info, sheet-list, cell-get/-set/-range/-formula,
-│                            chart-create, sort, export-csv)
+│                            chart-create, sort, export-csv, view, get)
 ├── impress   PPT          (new, info, slide-list/-add/-delete,
-│                            text-set/-get, image-insert, export-pdf)
+│                            text-set/-get, image-insert, export-pdf, view, get)
 ├── pdf       PDF          (info, merge, extract-pages, split, watermark)
 ├── export    Conversion   (convert, batch)
+├── resident  Resident     (start, stop, status, sessions, open, close)
+├── mcp       MCP Server   (serve, install, status)
+├── install   AI Tools     (skill, mcp, all-tools)
 ├── version   Print version
 └── doctor    Environment diagnostics
 ```

@@ -5,7 +5,7 @@
 ## [Unreleased]
 
 ### Added — 🚀 全面升级（借鉴 OfficeCLI 设计理念）
-- **MCP 服务器**：内置 JSON-RPC 2.0 over stdio MCP 服务器，零外部依赖，暴露 27 个 tool（Writer 8 + Calc 7 + Impress 5 + PDF 5 + Export 1 + 通用 1）。
+- **MCP 服务器**：内置 JSON-RPC 2.0 over stdio MCP 服务器，零外部依赖，暴露 26 个 tool（Writer 8 + Calc 7 + Impress 5 + PDF 5 + Export 1）。
   - CLI 命令：`wps mcp serve|install|status`，支持一键注册到 Claude Code / Cursor / VS Code。
   - 设计借鉴：iOfficeAI/OfficeCLI (Apache 2.0)
 - **SKILL.md**：~390 行中文 AI Agent 教学文件，覆盖全部命令速查、典型模式、JSON schema 和退出码语义。
