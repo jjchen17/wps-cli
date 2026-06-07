@@ -830,7 +830,7 @@ class WpsMcpServer:
                     "capabilities": {"tools": {}},
                     "serverInfo": {
                         "name": "wps-cli",
-                        "version": "0.1.0",
+                        "version": __import__("wps_cli").__version__,
                     },
                 })
 

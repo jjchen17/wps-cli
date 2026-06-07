@@ -24,9 +24,9 @@ def test_help():
 
 
 def test_subcommands_registered():
-    """五个子命令组都在 --help 输出里"""
+    """八个子命令组都在 --help 输出里"""
     result = runner.invoke(app, ["--help"])
-    for sub in ("writer", "calc", "impress", "pdf", "export"):
+    for sub in ("writer", "calc", "impress", "pdf", "export", "resident", "mcp", "install"):
         assert sub in result.output
 
 

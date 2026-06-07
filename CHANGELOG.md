@@ -4,7 +4,30 @@
 
 ## [Unreleased]
 
-### Added — 第二轮安全加固
+### Added — 🚀 全面升级（借鉴 OfficeCLI 设计理念）
+- **MCP 服务器**：内置 JSON-RPC 2.0 over stdio MCP 服务器，零外部依赖，暴露 27 个 tool（Writer 8 + Calc 7 + Impress 5 + PDF 5 + Export 1 + 通用 1）。
+  - CLI 命令：`wps mcp serve|install|status`，支持一键注册到 Claude Code / Cursor / VS Code。
+  - 设计借鉴：iOfficeAI/OfficeCLI (Apache 2.0)
+- **SKILL.md**：~390 行中文 AI Agent 教学文件，覆盖全部命令速查、典型模式、JSON schema 和退出码语义。
+  - CLI 命令：`wps install skill|mcp|all-tools`，自动检测并安装到主流 AI 工具配置目录。
+- **模板合并引擎**：`{{key}}` 占位符替换，覆盖段落/表格/页眉页脚，保持原格式不变。
+  - CLI 命令：`wps writer merge`。
+  - 设计借鉴：iOfficeAI/OfficeCLI (Apache 2.0)
+- **驻留模式**：HTTP 服务器后台驻留 COM 进程，连续操作性能提升 5-10x，stdlib http.server 实现。
+  - CLI 命令：`wps resident start|stop|sessions|open|close`。
+  - 设计借鉴：iOfficeAI/OfficeCLI (Apache 2.0)
+- **统一路径解析器**：1-based 路径语法（`/section[1]/paragraph[3]`、`/slide[1]/shape[2]`），支持 Writer/Calc/Impress 和 Excel 风格简写（`$Sheet1:A1`）。
+  - CLI 命令：`wps writer|calc|impress get <path>`。
+  - 设计借鉴：iOfficeAI/OfficeCLI (Apache 2.0)
+- **语义视图与诊断**：`summarize()` 文档结构摘要 + `diagnose()` 文档问题检测（图片 alt text、公式错误、字体一致性等）。
+  - CLI 命令：`wps writer|calc|impress view <file> [summary|issues|outline]`。
+  - 设计借鉴：iOfficeAI/OfficeCLI (Apache 2.0)
+
+### Changed — 安全加固
+- **公式注入绕过修复 (CRITICAL)**：`_check_formula_safe` 改用 `re.sub(r"\s+", "", ...)` 移除所有 Unicode 空白字符（修复换行符/制表符/全角空格绕过）。
+- `harden()` 静默失败改为记录 `logging.warning`（防止宏保护缺失不知情）。
+- 添加 `INDIRECT()` 到危险公式函数名单。
+- 修复 `redact_path()` 对含空格 Windows 路径脱敏不完整的问题。
 - 文件扩展名白名单：所有 CLI 命令按应用类型（writer/calc/impress/pdf）拒绝不匹配的扩展名，防止 `wps calc cell-set README.md ...` 这类把任意文件作为工作簿覆盖的攻击。
 - 危险公式黑名单补全：增加 `WEBSERVICE` / `FILTERXML` / `RTD` / `IMPORTDATA` / `IMPORTHTML` / `IMPORTRANGE` / `IMPORTXML` / `IMPORTFEED` / `ENCODEURL` 与对应的 `_xlfn.` 兼容前缀。
 - 通配符替换反向引用防护：`writer replace --wildcard` 拒绝 `\1`-`\9` 反向引用（防止内容指数级膨胀），并对查找/替换文本加 1000 字符长度上限。

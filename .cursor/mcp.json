@@ -1,0 +1,9 @@
+{
+  "wps-cli": {
+    "command": "wps",
+    "args": [
+      "mcp",
+      "serve"
+    ]
+  }
+}

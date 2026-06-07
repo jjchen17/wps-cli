@@ -94,6 +94,9 @@ wps
 │   ├── image-insert
 │   ├── page-setup
 │   ├── style-apply
+│   ├── merge       ★ 模板合并：{{key}} 占位符替换
+│   ├── view        ★ 语义视图：summary / issues / outline
+│   ├── get         ★ 路径定位：/section[1]/paragraph[3]
 │   └── export-pdf
 ├── calc            Excel 表格
 │   ├── new / info
@@ -101,11 +104,15 @@ wps
 │   ├── cell-get / cell-set / cell-range / cell-formula
 │   ├── chart-create
 │   ├── sort
+│   ├── view        ★ 语义视图：summary / issues / sheets
+│   ├── get         ★ 路径定位：/sheet["Sheet1"]/cell["A1"]
 │   └── export-csv
 ├── impress         PPT 演示
 │   ├── new / info
 │   ├── slide-list / slide-add / slide-delete
 │   ├── text-set / text-get / image-insert
+│   ├── view        ★ 语义视图：summary / issues / slides
+│   ├── get         ★ 路径定位：/slide[1]/shape[2]
 │   └── export-pdf
 ├── pdf             PDF 处理
 │   ├── info
@@ -114,6 +121,13 @@ wps
 ├── export          格式转换
 │   ├── convert
 │   └── batch
+├── resident        ★ 驻留模式：保持 COM 进程存活，加速连续操作
+│   ├── start / stop / sessions
+│   └── open / close
+├── mcp             ★ MCP 服务器：供 AI Agent 通过 JSON-RPC 调用
+│   ├── serve / install / status
+├── install         ★ AI 工具集成：自动安装 SKILL.md 和 MCP 配置
+│   ├── skill / mcp / all-tools
 ├── version         版本信息
 └── doctor          环境诊断
 ```
@@ -168,6 +182,96 @@ JSON 输出统一为：
 
 ---
 
+---
+
+## AI Agent 集成
+
+### MCP 服务器
+
+内置 MCP (Model Context Protocol) 服务器，将全部文档操作能力通过 JSON-RPC 2.0 over stdio 暴露给 AI Agent：
+
+```bash
+wps mcp serve                # 启动 MCP stdio 服务器
+wps mcp install --target claude  # 一键注册到 Claude Code
+wps mcp status               # 检查注册状态
+```
+
+支持 Claude Code、Cursor、VS Code Copilot 等所有兼容 MCP 协议的 AI 工具。
+
+> 设计借鉴：此功能设计参考了 [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) 的 MCP 集成方案。
+
+### SKILL.md 自动安装
+
+```bash
+wps install skill            # 安装到所有检测到的 AI 工具
+wps install skill --target claude  # 仅安装到 Claude Code
+wps install all-tools        # 一键安装 SKILL.md + MCP 配置
+```
+
+AI Agent 可通过阅读 SKILL.md 自主学习全部 36+ 条命令的用法。
+
+---
+
+## 模板合并
+
+使用 `{{key}}` 占位符实现"AI 设计一次模板，代码填充 N 次"：
+
+```bash
+wps writer merge template.docx -o output.docx --data '{"name":"张三","date":"2026-06-07"}'
+```
+
+覆盖段落、表格单元格、页眉页脚中的占位符，保持原有格式不变。
+
+> 设计借鉴：此功能设计参考了 [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) 的 Template Merge Engine。
+
+---
+
+## 驻留模式
+
+保持 COM 进程存活，连续操作性能提升 5-10x（避免每次启动 WPS + 重复 Open/Close 文档）：
+
+```bash
+wps resident start --port 9123     # 启动后台 HTTP 服务
+wps resident open report.docx --type writer  # 打开文档
+wps resident sessions              # 查看活跃会话
+wps resident stop                  # 停止服务
+```
+
+零外部依赖，使用 stdlib http.server 实现。
+
+> 设计借鉴：此功能设计参考了 [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) 的 Resident 模式。
+
+---
+
+## 路径定位语法
+
+统一 1-based 路径语法精确访问文档元素，无需了解 COM API 细节：
+
+```bash
+wps writer get doc.docx "/section[1]/paragraph[3]"          # Word：第1节第3段
+wps calc get data.xlsx '/sheet["Sheet1"]/cell["C12"]'       # Excel：Sheet1 的 C12
+wps calc get data.xlsx '$Sheet1:A1'                         # Excel 风格简写
+wps impress get pres.pptx "/slide[1]/shape[2]"              # PPT：第1张第2个形状
+```
+
+> 设计借鉴：此功能设计参考了 [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) 的路径定位语法。
+
+---
+
+## 语义视图与诊断
+
+一键获取文档结构摘要或检测潜在问题：
+
+```bash
+wps writer view report.docx summary   # 标题/表格/图片结构概览
+wps writer view report.docx issues    # 检测：图片无alt、公式错误等
+wps writer view report.docx outline   # 纯大纲视图
+```
+
+AI Agent 可通过诊断实现"编辑 → 诊断 → 修复 → 再诊断"的自愈工作流。
+
+> 设计借鉴：此功能设计参考了 [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) 的 L1 Read 层和 `view issues` 命令。
+
 ## 安全性
 
 wps-cli 默认开启以下加固，避免常见的 Office 自动化滥用路径：
@@ -212,8 +316,9 @@ pytest
 
 ```
 src/wps_cli/
-├── cli/            # CLI 命令层 (Typer)
-├── services/       # 业务层 (Writer/Calc/Impress/PDF/Export)
+├── cli/            # CLI 命令层 (Typer) — 含 MCP/Install/Resident 子命令
+├── mcp/            # MCP 服务器 (JSON-RPC 2.0 over stdio)
+├── services/       # 业务层 (Writer/Calc/Impress/PDF/Export + 模板引擎/路径解析/诊断)
 ├── backends/       # COM 后端层 (抽象基类 + WPS 实现)
 └── utils/          # 工具函数
 ```

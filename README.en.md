@@ -130,6 +130,96 @@ On error:
 
 ---
 
+---
+
+## AI Agent Integration
+
+### MCP Server
+
+Built-in MCP (Model Context Protocol) server exposes all document operations via JSON-RPC 2.0 over stdio:
+
+```bash
+wps mcp serve                # Start MCP stdio server
+wps mcp install --target claude  # Register with Claude Code
+wps mcp status               # Check registration status
+```
+
+Supports Claude Code, Cursor, VS Code Copilot and all MCP-compatible AI tools.
+
+> Design reference: [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0)
+
+### SKILL.md Auto-Install
+
+```bash
+wps install skill              # Install for all detected AI tools
+wps install skill --target claude  # Claude Code only
+wps install all-tools          # Install SKILL.md + MCP config
+```
+
+AI Agents can learn all 36+ commands by reading the SKILL.md skill file.
+
+---
+
+## Template Merge
+
+"Design once, fill N times" with `{{key}}` placeholders:
+
+```bash
+wps writer merge template.docx -o output.docx --data '{"name":"John","date":"2026-06-07"}'
+```
+
+Covers paragraphs, table cells, headers and footers. Original formatting is preserved.
+
+> Design reference: [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) Template Merge Engine.
+
+---
+
+## Resident Mode
+
+Keep COM processes alive for 5-10x faster multi-step operations:
+
+```bash
+wps resident start --port 9123      # Start background HTTP service
+wps resident open report.docx --type writer  # Open document
+wps resident sessions               # List active sessions
+wps resident stop                   # Stop service
+```
+
+Zero dependencies, stdlib http.server based.
+
+> Design reference: [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) Resident mode.
+
+---
+
+## Path Addressing Syntax
+
+Unified 1-based path syntax for precise element access:
+
+```bash
+wps writer get doc.docx "/section[1]/paragraph[3]"          # Word: section 1, paragraph 3
+wps calc get data.xlsx '/sheet["Sheet1"]/cell["C12"]'       # Excel: cell C12
+wps calc get data.xlsx '$Sheet1:A1'                         # Excel shorthand
+wps impress get pres.pptx "/slide[1]/shape[2]"              # PPT: slide 1, shape 2
+```
+
+> Design reference: [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) path addressing.
+
+---
+
+## Semantic Views & Diagnostics
+
+Get document summaries or detect issues in one command:
+
+```bash
+wps writer view report.docx summary   # Structure overview
+wps writer view report.docx issues    # Detect: missing alt text, formula errors, etc.
+wps writer view report.docx outline   # Heading outline
+```
+
+Enables AI Agent self-healing: edit → diagnose → fix → re-diagnose.
+
+> Design reference: [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) L1 Read layer & `view issues`.
+
 ## Security
 
 By default, wps-cli applies several hardenings to avoid common Office automation abuse paths:
