@@ -1,14 +1,14 @@
 # WPS CLI
 
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Commands](https://img.shields.io/badge/commands-36-important)]()
+[![Commands](https://img.shields.io/badge/commands-56-important)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)]()
 [![WPS](https://img.shields.io/badge/requires-WPS%20Office%202019%2B-C00000)]()
 [![PyPI](https://img.shields.io/pypi/v/wps-cli)](https://pypi.org/project/wps-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/wps-cli)](https://pypi.org/project/wps-cli/)
 
-在终端里指挥 WPS Office 干活 — 真格式、真排版、36 条命令。
+在终端里指挥 WPS Office 干活 — 真格式、真排版、56 条命令。
 
 > **不是"所见即所猜"，是所见即所得。** 不模拟文件格式，直接驱动真实的 WPS 引擎。
 
@@ -208,7 +208,7 @@ wps install skill --target claude  # 仅安装到 Claude Code
 wps install all-tools        # 一键安装 SKILL.md + MCP 配置
 ```
 
-AI Agent 可通过阅读 SKILL.md 自主学习全部 36+ 条命令的用法。
+AI Agent 可通过阅读 SKILL.md 自主学习全部 56 条命令的用法。
 
 ---
 

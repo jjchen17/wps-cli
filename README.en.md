@@ -1,14 +1,14 @@
 # WPS CLI
 
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Commands](https://img.shields.io/badge/commands-36-important)]()
+[![Commands](https://img.shields.io/badge/commands-56-important)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)]()
 [![WPS](https://img.shields.io/badge/requires-WPS%20Office%202019%2B-C00000)]()
 [![PyPI](https://img.shields.io/pypi/v/wps-cli)](https://pypi.org/project/wps-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/wps-cli)](https://pypi.org/project/wps-cli/)
 
-Drive WPS Office from the terminal — real formatting, real layout, 36 commands.
+Drive WPS Office from the terminal — real formatting, real layout, 56 commands.
 
 > Not "guess what you see" — **what you see is what you get**. Don't simulate the file format, just drive the actual WPS engine.
 
@@ -41,7 +41,7 @@ When you set "Heiti, size 3, bold," it actually executes that operation inside W
 |---|---|---|
 | **100% formatting fidelity** | Not parsing files — directly commanding the WPS engine | What you see is what you get |
 | **AI Agent native** | All commands support `--json` with a unified schema | Built for LLM agents and automation pipelines |
-| **One tool for four apps** | Writer / Calc / Impress / PDF, 36 commands | Office automation in one place |
+| **One tool for four apps** | Writer / Calc / Impress / PDF, 56 commands | Office automation in one place |
 
 ---
 
@@ -156,7 +156,7 @@ wps install skill --target claude  # Claude Code only
 wps install all-tools          # Install SKILL.md + MCP config
 ```
 
-AI Agents can learn all 36+ commands by reading the SKILL.md skill file.
+AI Agents can learn all 56 commands by reading the SKILL.md skill file.
 
 ---
 
