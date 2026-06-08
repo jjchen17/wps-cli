@@ -4,6 +4,34 @@
 
 ## [Unreleased]
 
+### Added — 📊 文档诊断增强（借鉴 OfficeCLI）
+- **Issue 子类型体系**：22 种标准化 subtype 常量（`formula_eval_error`/`definedname_broken`/`number_as_text` 等），所有 diagnose 方法输出稳定机器可读标识符。
+- **`view annotated`**：文档注释视图，每行标注元素路径和样式。
+- **`view stats`**：纯数字统计模式（公式数、图表数、命名区域数、脚注数等）。
+- **`view --type` 过滤**：支持按 subtype 精确过滤诊断结果。
+- 新增 Writer 诊断：空白段落、编号断裂、字段过期、文本溢出。
+- 新增 Calc 诊断：数值存文本、合并单元格、条件格式冲突、命名区域断裂。
+- 新增 Impress 诊断：动画触发器缺失、母版覆盖、字体一致性。
+
+### Added — 🤖 AI 工具生态 + Batch 批量命令（借鉴 OfficeCLI）
+- **AI 工具检测从 3 种扩展到 11 种**：Windsurf / Codex / Hermes / MiniMax / OpenCode / NanoBot / ZeroClaw / OpenClaw。
+- **`wps batch` 命令**：JSON 数组批量执行，默认 continue-on-error，支持 `--stop-on-error`，自动检测驻留进程转发。
+- 批量命令输出 per-step 结果（`{index, success, command, result/error}`），驻留进程内单次 open/save。
+
+### Added — ✅ 文档验证 + 刷新（借鉴 OfficeCLI）
+- **`wps writer|calc|impress validate` 命令**：拼写检查、超链接有效性、公式求值状态、命名区域完整性、媒体完整性、母版引用。
+- **`wps writer|calc|impress refresh` 命令**：刷新 TOC/PAGE 字段、数据透视表、外部链接。
+
+### Added — 📝 表单域与内容控件（借鉴 OfficeCLI）
+- **表单域**：`wps writer formfield-list|get|set` — 支持旧式 FormFields 读写。
+- **内容控件**：`wps writer contentcontrol-list|set` — 支持 SDT 内容控件。
+
+### Added — 📈 Calc 高级格式 + Dump 序列化（借鉴 OfficeCLI）
+- **条件格式**：`wps calc conditional-format-add|list|delete` — 支持 cellvalue/formulabased/databar/colorscale/iconset/toprank/textstring。
+- **数据验证**：`wps calc data-validation-add|list` — 支持 list/whole/decimal/date/time/textlength/custom。
+- **迷你图**：`wps calc sparkline-add` — 支持 line/column/stacked100。
+- **`wps dump` 命令**：将 Word/PPT 文档序列化为 batch JSON，支持全文档和子树 dump，支持 batch 回放重生成。
+
 ### Fixed — Issue #8: WPS 12.x COM 注册缺失修复
 - **多 ProgID 回退**: `WpsComBackend.connect()` 依次探测 K 前缀/非 K 前缀/Kingsoft 全限定名 3 个候选 ProgID，兼容 WPS 12.x 不再注册 `KWPS.Application` 的情况。
 - **注册表诊断**: 新增 `services/com_diagnostics.py`，读取 HKCR 注册表检查 ProgID→CLSID→LocalServer32 完整链，同时检测 32/64 位视图和 WOW6432Node。

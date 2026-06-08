@@ -251,6 +251,86 @@ def export_csv(
         handle_error(e, command=cmd, json_mode=json_output)
 
 
+# ── Validate 验证命令 ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command()
+def validate(
+    file: str = typer.Argument(..., help="文件路径"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """验证 Excel 工作簿完整性
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    检查项: 公式错误、命名区域引用、外部链接、工作表结构
+    """
+    cmd = "calc.validate"
+    try:
+        path = _safe_calc_input(file)
+        from wps_cli.services.validate_service import ValidateService
+
+        svc = ValidateService(manager=_get_service().manager)
+        result = svc.validate_calc(path)
+        success(
+            {
+                "passed": result.passed,
+                "file": result.file,
+                "checks": result.checks,
+                "issues_count": result.issues_count,
+                "errors_count": result.errors_count,
+                "warnings_count": result.warnings_count,
+            },
+            command=cmd,
+            json_mode=json_output,
+        )
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── Refresh 刷新命令 ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command()
+def refresh(
+    file: str = typer.Argument(..., help="文件路径"),
+    field: str = typer.Option(
+        "all", "--field", "-f", help="刷新类型: all/pivot"
+    ),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """刷新工作簿数据和公式
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    --field all    刷新所有（公式重算 + 外部数据 + 透视表）
+    --field pivot  仅刷新透视表缓存
+    """
+    cmd = "calc.refresh"
+    try:
+        path = _safe_calc_input(file)
+        if field not in ("all", "pivot"):
+            from wps_cli.exceptions import ValidationError
+
+            raise ValidationError(
+                f"不支持的刷新类型: {field}",
+                suggestion="可选: all, pivot",
+            )
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, path)
+            result = svc.refresh(session.app, field if field != "all" else None)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
 # ── 语义视图与路径定位（Phase 4）──
 # 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
 
@@ -258,17 +338,20 @@ def export_csv(
 @app.command("view")
 def view(
     file: str = typer.Argument(..., help="文件路径"),
-    view_type: str = typer.Argument("summary", help="视图类型: summary/issues"),
+    view_type: str = typer.Argument("summary", help="视图类型: summary/issues/sheets/annotated/stats"),
+    type_filter: str = typer.Option("", "--type", "-t", help="过滤问题子类型（仅对 issues 视图有效）"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """工作簿语义视图（参考 OfficeCLI L1 Read）
 
     设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
 
-    支持三种视图:
-      summary  — 工作簿结构摘要（工作表/图表/命名区域）
-      issues   — 文档诊断（公式错误/隐藏行列）
-      sheets   — 工作表列表概览
+    支持五种视图:
+      summary   — 工作簿结构摘要（工作表/图表/命名区域）
+      issues    — 文档诊断（公式错误/隐藏行列），可用 --type 过滤子类型
+      sheets    — 工作表列表概览
+      annotated — 带路径标注的单元格内容
+      stats     — 纯数字统计
     """
     cmd = f"calc.view_{view_type}"
     try:
@@ -281,14 +364,20 @@ def view(
                 result = svc.summarize(session.app)
             elif view_type == "issues":
                 result = svc.diagnose(session.app)
+                if type_filter:
+                    result = [r for r in result if r.get("subtype", "") == type_filter]
             elif view_type == "sheets":
                 result = svc.sheet_list(session.app)
+            elif view_type == "annotated":
+                result = svc.annotate(session.app)
+            elif view_type == "stats":
+                result = svc.get_stats(session.app)
             else:
                 from wps_cli.exceptions import ValidationError
 
                 raise ValidationError(
                     f"不支持的视图类型: {view_type}",
-                    suggestion="可选: summary, issues, sheets",
+                    suggestion="可选: summary, issues, sheets, annotated, stats",
                 )
         finally:
             svc.manager.stop(session.session_id)
@@ -328,5 +417,191 @@ def get(
         finally:
             svc.manager.stop(session.session_id)
         success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── 条件格式 (Phase 5) ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command("conditional-format-add")
+def conditional_format_add(
+    file: str = typer.Argument(..., help="文件路径"),
+    range_ref: str = typer.Option(..., "--range", "-r", help="应用区域，如 A1:A10"),
+    cf_type: str = typer.Option(
+        "cellvalue", "--type", "-t",
+        help="条件类型: cellvalue/formulabased/databar/colorscale/iconset/toprank/aboveaverage",
+    ),
+    operator: str = typer.Option(
+        "greaterthan", "--op", "-p",
+        help="运算符: greaterthan/lessthan/between/equal/notequal/contains/notcontains",
+    ),
+    formula1: str = typer.Option("", "--formula1", "-f1", help="条件值/公式1"),
+    formula2: str = typer.Option("", "--formula2", "-f2", help="条件值2（between 时使用）"),
+    sheet: str = typer.Option("", "--sheet", "-s", help="工作表名"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """添加条件格式"""
+    cmd = "calc.conditional_format_add"
+    try:
+        path = _safe_calc_input(file)
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, path)
+            idx = svc.conditional_format_add(
+                session.app, range_ref, cf_type, operator, formula1, formula2, sheet or None
+            )
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success({"index": idx, "range": range_ref}, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command("conditional-format-list")
+def conditional_format_list(
+    file: str = typer.Argument(..., help="文件路径"),
+    sheet: str = typer.Option("", "--sheet", "-s", help="工作表名"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """列出条件格式"""
+    cmd = "calc.conditional_format_list"
+    try:
+        path = _safe_calc_input(file)
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, path, readonly=True)
+            result = svc.conditional_format_list(session.app, sheet or None)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command("conditional-format-delete")
+def conditional_format_delete(
+    file: str = typer.Argument(..., help="文件路径"),
+    index: int = typer.Option(..., "--index", "-i", help="条件格式序号（0=全部删除）"),
+    sheet: str = typer.Option("", "--sheet", "-s", help="工作表名"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """删除条件格式"""
+    cmd = "calc.conditional_format_delete"
+    try:
+        path = _safe_calc_input(file)
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, path)
+            svc.conditional_format_delete(session.app, index, sheet or None)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success({"deleted_index": index}, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── 数据验证 (Phase 5) ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command("data-validation-add")
+def data_validation_add(
+    file: str = typer.Argument(..., help="文件路径"),
+    range_ref: str = typer.Option(..., "--range", "-r", help="应用区域，如 B1:B10"),
+    validation_type: str = typer.Option(
+        "list", "--type", "-t",
+        help="验证类型: whole/decimal/list/date/time/textlength/custom",
+    ),
+    formula1: str = typer.Option("", "--formula1", "-f1", help="验证公式/值1"),
+    formula2: str = typer.Option("", "--formula2", "-f2", help="验证公式/值2"),
+    alert_style: str = typer.Option(
+        "stop", "--alert", "-a",
+        help="警告样式: stop/warning/information",
+    ),
+    alert_message: str = typer.Option("", "--message", "-m", help="错误提示消息"),
+    sheet: str = typer.Option("", "--sheet", "-s", help="工作表名"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """添加数据验证（下拉列表等）"""
+    cmd = "calc.data_validation_add"
+    try:
+        path = _safe_calc_input(file)
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, path)
+            svc.data_validation_add(
+                session.app, range_ref, validation_type,
+                formula1, formula2, alert_style, alert_message,
+                sheet or None,
+            )
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success({"range": range_ref, "type": validation_type}, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command("data-validation-list")
+def data_validation_list(
+    file: str = typer.Argument(..., help="文件路径"),
+    sheet: str = typer.Option("", "--sheet", "-s", help="工作表名"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """列出数据验证"""
+    cmd = "calc.data_validation_list"
+    try:
+        path = _safe_calc_input(file)
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, path, readonly=True)
+            result = svc.data_validation_list(session.app, sheet or None)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── 迷你图 (Phase 5) ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command("sparkline-add")
+def sparkline_add(
+    file: str = typer.Argument(..., help="文件路径"),
+    range_ref: str = typer.Option(..., "--range", "-r", help="放置位置，如 F1:F10"),
+    source_data: str = typer.Option(..., "--source", "-d", help="数据源区域，如 A1:E10"),
+    spark_type: str = typer.Option(
+        "line", "--type", "-t",
+        help="迷你图类型: line/column/stacked100",
+    ),
+    sheet: str = typer.Option("", "--sheet", "-s", help="工作表名"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """添加迷你图"""
+    cmd = "calc.sparkline_add"
+    try:
+        path = _safe_calc_input(file)
+        svc = _get_service()
+        session = svc.manager.start("calc")
+        try:
+            svc._open_workbook(session.app, path)
+            idx = svc.sparkline_add(
+                session.app, range_ref, spark_type, source_data, sheet or None
+            )
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success({"sparkline_index": idx, "range": range_ref}, command=cmd, json_mode=json_output)
     except Exception as e:
         handle_error(e, command=cmd, json_mode=json_output)

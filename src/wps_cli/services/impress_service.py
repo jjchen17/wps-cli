@@ -199,6 +199,30 @@ class ImpressService:
         pres.SaveAs(str(output), PP_SAVE_AS_PDF)
         return output
 
+    # ── Refresh 刷新 ──
+    # 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    def refresh(self, app: Any) -> dict:
+        """刷新演示文稿链接
+
+        调用 ActivePresentation.UpdateLinks() 更新所有 OLE 链接、
+        图表数据和嵌入对象。
+        """
+        pres = app.ActivePresentation
+        result: dict = {"actions": []}
+
+        try:
+            pres.UpdateLinks()
+            result["actions"].append(
+                {"action": "update_links", "status": "ok"}
+            )
+        except Exception as e:
+            result["actions"].append(
+                {"action": "update_links", "status": "error", "message": str(e)}
+            )
+
+        return result
+
     # ── 语义视图与诊断 ──
 
     def summarize(self, app: Any) -> dict:
@@ -299,9 +323,114 @@ class ImpressService:
             {
                 "severity": i.severity,
                 "category": i.category,
+                "subtype": i.subtype,
                 "location": i.location,
                 "message": i.message,
                 "suggestion": i.suggestion,
             }
             for i in issues
         ]
+
+    def annotate(self, app: Any) -> list[str]:
+        """输出演示文稿带路径标注的摘要（参考 OfficeCLI view annotated）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+        """
+        pres = app.ActivePresentation
+        lines: list[str] = []
+
+        for i in range(1, pres.Slides.Count + 1):
+            try:
+                sl = pres.Slides(i)
+                lines.append(f"[/presentation/slide[{i}] "
+                             f"layout={sl.Layout}]")
+
+                for j, sh in enumerate(sl.Shapes, 1):
+                    try:
+                        shape_type = str(sh.Type) if hasattr(sh, "Type") else "unknown"
+                        shape_name = str(sh.Name) if hasattr(sh, "Name") else "shape"
+                        alt_text = (
+                            str(sh.AlternativeText)
+                            if hasattr(sh, "AlternativeText") and sh.AlternativeText
+                            else "(无)"
+                        )
+                        text_preview = ""
+                        if sh.HasTextFrame:
+                            try:
+                                text_preview = sh.TextFrame.TextRange.Text[:60].strip()
+                            except Exception:
+                                pass
+
+                        lines.append(
+                            f"[/presentation/slide[{i}]/shape[{j}] "
+                            f"name={shape_name} type={shape_type} "
+                            f"alt_text={alt_text}] {text_preview}"
+                        )
+                    except Exception:
+                        pass
+
+            except Exception:
+                pass
+
+        return lines
+
+    def get_stats(self, app: Any) -> dict:
+        """获取纯数字统计信息（参考 OfficeCLI view stats）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+        """
+        pres = app.ActivePresentation
+        stats: dict = {}
+
+        try:
+            stats["slides"] = pres.Slides.Count
+        except Exception:
+            stats["slides"] = 0
+
+        total_shapes = 0
+        total_text_frames = 0
+        total_images = 0
+        slides_with_notes = 0
+
+        for i in range(1, stats["slides"] + 1):
+            try:
+                sl = pres.Slides(i)
+                try:
+                    shape_count = sl.Shapes.Count
+                    total_shapes += shape_count
+                except Exception:
+                    pass
+
+                # 统计形状类型
+                try:
+                    for sh in sl.Shapes:
+                        try:
+                            if sh.HasTextFrame:
+                                total_text_frames += 1
+                            if hasattr(sh, "Type") and sh.Type == 13:  # msoPicture
+                                total_images += 1
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                # 备注
+                try:
+                    notes_text = (
+                        sl.NotesPage.Shapes.Placeholders(PP_PLACEHOLDER_BODY)
+                        .TextFrame.TextRange.Text.strip()
+                    )
+                    if notes_text:
+                        slides_with_notes += 1
+                except Exception:
+                    pass
+
+            except Exception:
+                pass
+
+        stats["total_shapes"] = total_shapes
+        stats["total_text_frames"] = total_text_frames
+        stats["total_images"] = total_images
+        stats["slides_with_notes"] = slides_with_notes
+
+        return stats

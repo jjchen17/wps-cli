@@ -95,7 +95,11 @@ wps
 │   ├── page-setup
 │   ├── style-apply
 │   ├── merge       ★ 模板合并：{{key}} 占位符替换
-│   ├── view        ★ 语义视图：summary / issues / outline
+│   ├── view        ★ 语义视图：summary / issues / outline / annotated / stats
+│   ├── validate    ★ 文档验证：拼写/链接/字段完整性
+│   ├── refresh     ★ 刷新字段：TOC / PAGE / 交叉引用
+│   ├── formfield-* ★ 表单域：list / get / set
+│   ├── contentcontrol-* ★ 内容控件：list / set
 │   ├── get         ★ 路径定位：/section[1]/paragraph[3]
 │   └── export-pdf
 ├── calc            Excel 表格
@@ -105,6 +109,11 @@ wps
 │   ├── chart-create
 │   ├── sort
 │   ├── view        ★ 语义视图：summary / issues / sheets
+│   ├── validate    ★ 文档验证
+│   ├── refresh     ★ 刷新公式 / 透视表
+│   ├── conditional-format-* ★ 条件格式
+│   ├── data-validation-* ★ 数据验证
+│   ├── sparkline-add ★ 迷你图
 │   ├── get         ★ 路径定位：/sheet["Sheet1"]/cell["A1"]
 │   └── export-csv
 ├── impress         PPT 演示
@@ -112,6 +121,8 @@ wps
 │   ├── slide-list / slide-add / slide-delete
 │   ├── text-set / text-get / image-insert
 │   ├── view        ★ 语义视图：summary / issues / slides
+│   ├── validate    ★ 文档验证
+│   ├── refresh     ★ 刷新链接
 │   ├── get         ★ 路径定位：/slide[1]/shape[2]
 │   └── export-pdf
 ├── pdf             PDF 处理
@@ -126,6 +137,8 @@ wps
 │   └── open / close
 ├── mcp             ★ MCP 服务器：供 AI Agent 通过 JSON-RPC 调用
 │   ├── serve / install / status
+├── batch          ★ 批量命令：JSON 数组批量执行
+├── dump           ★ 文档序列化：生成可重放 batch JSON
 ├── install         ★ AI 工具集成：自动安装 SKILL.md 和 MCP 配置
 │   ├── skill / mcp / all-tools
 ├── version         版本信息

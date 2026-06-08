@@ -170,6 +170,57 @@ IMPRESS_INPUT_EXTENSIONS: frozenset[str] = frozenset(
 )
 PDF_INPUT_EXTENSIONS: frozenset[str] = frozenset({".pdf"})
 
+# ── XlFormatConditionType ───────────────────────────────────────
+# Range.FormatConditions.Add(Type, ...) 的类型参数
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+XL_CF_CELL_VALUE = 1
+XL_CF_EXPRESSION = 2
+XL_CF_COLOR_SCALE = 3
+XL_CF_DATA_BAR = 4
+XL_CF_TOP_10 = 5
+XL_CF_ICON_SET = 6
+XL_CF_UNIQUE_VALUES = 8
+XL_CF_TEXT_STRING = 9
+XL_CF_ABOVE_AVERAGE = 12
+
+# ── XlFormatConditionOperator ────────────────────────────────────
+XL_CF_OP_BETWEEN = 1
+XL_CF_OP_NOT_BETWEEN = 2
+XL_CF_OP_EQUAL = 3
+XL_CF_OP_NOT_EQUAL = 4
+XL_CF_OP_GREATER = 5
+XL_CF_OP_LESS = 6
+XL_CF_OP_GREATER_EQUAL = 7
+XL_CF_OP_LESS_EQUAL = 8
+
+# ── XlContainsOperator (文本条件运算符) ─────────────────────────
+XL_CONTAINS = 0
+XL_DOES_NOT_CONTAIN = 1
+XL_BEGINS_WITH = 2
+XL_ENDS_WITH = 3
+
+# ── XlDVType (数据验证类型) ──────────────────────────────────────
+XL_DV_WHOLE = 1
+XL_DV_DECIMAL = 2
+XL_DV_LIST = 3
+XL_DV_DATE = 4
+XL_DV_TIME = 5
+XL_DV_TEXT_LENGTH = 6
+XL_DV_CUSTOM = 7
+
+# ── XlDVAlertStyle ───────────────────────────────────────────────
+XL_DV_ALERT_STOP = 1
+XL_DV_ALERT_WARNING = 2
+XL_DV_ALERT_INFO = 3
+
+# ── Sparkline 类型 ───────────────────────────────────────────────
+XL_SPARK_LINE = 1
+XL_SPARK_COLUMN = 2
+XL_SPARK_COLUMN_STACKED100 = 3
+
+# ── MsoEncoding (文档 dump 用) ────────────────────────────────────
+MSO_ENCODING_UTF8 = 65001
+
 # ── COM 诊断与多版本 ProgID ─────────────────────────────────────
 # 各应用类型的候选 ProgID 列表（按优先级排列）
 # WPS 12.x 可能不再注册 K 前缀 ProgID，需回退到非 K 前缀

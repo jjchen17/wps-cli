@@ -284,6 +284,279 @@ class WriterService:
         doc.ExportAsFixedFormat(str(output), WD_FORMAT_PDF)
         return output
 
+    # ── Refresh 刷新 ──
+    # 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    def refresh_fields(self, app: Any, field_type: str | None = None) -> dict:
+        """刷新文档字段
+
+        Args:
+            field_type: 字段类型过滤 (toc/page/all), None 或 "all" 表示全部
+        """
+        doc = app.ActiveDocument
+        result: dict = {"field_type": field_type or "all", "actions": []}
+
+        if field_type is None or field_type == "all":
+            try:
+                count = doc.Fields.Count
+                doc.Fields.Update()
+                result["actions"].append(
+                    {"action": "fields_update", "count": count, "status": "ok"}
+                )
+            except Exception as e:
+                result["actions"].append(
+                    {"action": "fields_update", "status": "error", "message": str(e)}
+                )
+
+            try:
+                toc_count = doc.TablesOfContents.Count
+                for i in range(1, toc_count + 1):
+                    try:
+                        doc.TablesOfContents(i).Update()
+                        result["actions"].append(
+                            {"action": f"toc_{i}_update", "status": "ok"}
+                        )
+                    except Exception as e:
+                        result["actions"].append(
+                            {
+                                "action": f"toc_{i}_update",
+                                "status": "error",
+                                "message": str(e),
+                            }
+                        )
+            except Exception as e:
+                result["actions"].append(
+                    {"action": "toc_update", "status": "error", "message": str(e)}
+                )
+
+        elif field_type == "toc":
+            try:
+                toc_count = doc.TablesOfContents.Count
+                for i in range(1, toc_count + 1):
+                    try:
+                        doc.TablesOfContents(i).Update()
+                        result["actions"].append(
+                            {"action": f"toc_{i}_update", "status": "ok"}
+                        )
+                    except Exception as e:
+                        result["actions"].append(
+                            {
+                                "action": f"toc_{i}_update",
+                                "status": "error",
+                                "message": str(e),
+                            }
+                        )
+                if toc_count == 0:
+                    result["actions"].append(
+                        {"action": "toc_update", "status": "skip", "message": "文档中无目录"}
+                    )
+            except Exception as e:
+                result["actions"].append(
+                    {"action": "toc_update", "status": "error", "message": str(e)}
+                )
+
+        elif field_type == "page":
+            try:
+                doc.Fields.Update()
+                result["actions"].append(
+                    {"action": "page_fields_update", "status": "ok"}
+                )
+            except Exception as e:
+                result["actions"].append(
+                    {"action": "page_fields_update", "status": "error", "message": str(e)}
+                )
+
+        return result
+
+    # ── 表单域与内容控件 ──
+    # 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    def formfield_list(self, app: Any) -> list[dict]:
+        """列出所有表单域（旧式 FormFields）"""
+        doc = app.ActiveDocument
+        fields: list[dict] = []
+        try:
+            total = doc.FormFields.Count
+            for i in range(1, total + 1):
+                try:
+                    ff = doc.FormFields(i)
+                    ff_type = ""
+                    try:
+                        type_val = ff.Type
+                        # wdFieldFormTextInput=70, wdFieldFormCheckBox=71, wdFieldFormDropDown=83
+                        type_map = {70: "text", 71: "checkbox", 83: "dropdown"}
+                        ff_type = type_map.get(type_val, f"unknown({type_val})")
+                    except Exception:
+                        ff_type = "unknown"
+
+                    result_text = ""
+                    try:
+                        result_text = str(ff.Result) if ff.Result else ""
+                    except Exception:
+                        pass
+
+                    name = ""
+                    try:
+                        name = str(ff.Name) if ff.Name else ""
+                    except Exception:
+                        pass
+
+                    fields.append(
+                        {
+                            "index": i,
+                            "name": name,
+                            "type": ff_type,
+                            "result": result_text,
+                        }
+                    )
+                except Exception:
+                    fields.append(
+                        {
+                            "index": i,
+                            "name": "",
+                            "type": "unknown",
+                            "result": "",
+                            "error": "无法读取表单域信息",
+                        }
+                    )
+        except Exception:
+            pass
+        return fields
+
+    def formfield_get(self, app: Any, index: int) -> dict:
+        """获取指定表单域信息"""
+        doc = app.ActiveDocument
+        ff = doc.FormFields(index)
+
+        ff_type = ""
+        try:
+            type_val = ff.Type
+            type_map = {70: "text", 71: "checkbox", 83: "dropdown"}
+            ff_type = type_map.get(type_val, f"unknown({type_val})")
+        except Exception:
+            ff_type = "unknown"
+
+        result_text = ""
+        try:
+            result_text = str(ff.Result) if ff.Result else ""
+        except Exception:
+            pass
+
+        name = ""
+        try:
+            name = str(ff.Name) if ff.Name else ""
+        except Exception:
+            pass
+
+        help_text = ""
+        try:
+            help_text = str(ff.StatusText) if ff.StatusText else ""
+        except Exception:
+            pass
+
+        return {
+            "index": index,
+            "name": name,
+            "type": ff_type,
+            "result": result_text,
+            "help_text": help_text,
+        }
+
+    def formfield_set(self, app: Any, index: int, value: str) -> None:
+        """设置表单域值"""
+        doc = app.ActiveDocument
+        ff = doc.FormFields(index)
+        ff.Result = value
+
+    def content_control_list(self, app: Any) -> list[dict]:
+        """列出所有内容控件（ContentControls）"""
+        doc = app.ActiveDocument
+        controls: list[dict] = []
+        try:
+            total = doc.ContentControls.Count
+            for i in range(1, total + 1):
+                try:
+                    cc = doc.ContentControls(i)
+                    cc_type = ""
+                    try:
+                        type_val = cc.Type
+                        # wdContentControlRichText=0, wdContentControlText=1,
+                        # wdContentControlPicture=2, wdContentControlComboBox=3,
+                        # wdContentControlDropdownList=4, wdContentControlBuildingBlockGallery=5,
+                        # wdContentControlDate=6, wdContentControlCheckBox=7
+                        type_map = {
+                            0: "rich_text",
+                            1: "plain_text",
+                            2: "picture",
+                            3: "combobox",
+                            4: "dropdown",
+                            5: "building_block",
+                            6: "date",
+                            7: "checkbox",
+                        }
+                        cc_type = type_map.get(type_val, f"unknown({type_val})")
+                    except Exception:
+                        cc_type = "unknown"
+
+                    text = ""
+                    try:
+                        text = str(cc.Range.Text).strip()[:200]
+                    except Exception:
+                        pass
+
+                    title = ""
+                    try:
+                        title = str(cc.Title) if cc.Title else ""
+                    except Exception:
+                        pass
+
+                    tag = ""
+                    try:
+                        tag = str(cc.Tag) if cc.Tag else ""
+                    except Exception:
+                        pass
+
+                    lock = ""
+                    try:
+                        if cc.LockContents:
+                            lock = "content_locked"
+                        elif cc.LockContentControl:
+                            lock = "cannot_delete"
+                    except Exception:
+                        pass
+
+                    controls.append(
+                        {
+                            "index": i,
+                            "title": title,
+                            "tag": tag,
+                            "type": cc_type,
+                            "text": text,
+                            "lock": lock,
+                        }
+                    )
+                except Exception:
+                    controls.append(
+                        {
+                            "index": i,
+                            "title": "",
+                            "tag": "",
+                            "type": "unknown",
+                            "text": "",
+                            "lock": "",
+                            "error": "无法读取内容控件信息",
+                        }
+                    )
+        except Exception:
+            pass
+        return controls
+
+    def content_control_set(self, app: Any, index: int, text: str) -> None:
+        """设置内容控件文本"""
+        doc = app.ActiveDocument
+        cc = doc.ContentControls(index)
+        cc.Range.Text = text
+
     # ── 语义视图与诊断 ──
 
     def summarize(self, app: Any) -> dict:
@@ -372,12 +645,140 @@ class WriterService:
             {
                 "severity": i.severity,
                 "category": i.category,
+                "subtype": i.subtype,
                 "location": i.location,
                 "message": i.message,
                 "suggestion": i.suggestion,
             }
             for i in issues
         ]
+
+    def annotate(self, app: Any) -> list[str]:
+        """输出文档内容并标注每个元素的路径和样式（参考 OfficeCLI view annotated）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+        遍历文档段落/表格/InlineShape，每行前缀标注路径和样式，便于 AI Agent 定位元素。
+        """
+        doc = app.ActiveDocument
+        lines: list[str] = []
+        para_idx = 0
+
+        try:
+            for obj in doc.StoryRanges:
+                try:
+                    for para in obj.Paragraphs:
+                        try:
+                            para_idx += 1
+                            style_name = str(para.Style)
+                            text = para.Range.Text.strip()
+                            if text and text not in ("\r", "\x0c", "\x0d"):
+                                lines.append(
+                                    f"[/section[1]/paragraph[{para_idx}] "
+                                    f"style={style_name}] {text}"
+                                )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        except Exception:
+            # 回退：直接遍历 Paragraphs
+            try:
+                for para in doc.Paragraphs:
+                    try:
+                        para_idx += 1
+                        style_name = str(para.Style)
+                        text = para.Range.Text.strip()
+                        if text and text not in ("\r", "\x0c", "\x0d"):
+                            lines.append(
+                                f"[/body/section[1]/paragraph[{para_idx}] "
+                                f"style={style_name}] {text}"
+                            )
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        # 表格
+        try:
+            for i in range(1, doc.Tables.Count + 1):
+                try:
+                    t = doc.Tables(i)
+                    lines.append(
+                        f"[/body/section[1]/table[{i}] "
+                        f"rows={t.Rows.Count} cols={t.Columns.Count}]"
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # InlineShape
+        try:
+            for i in range(1, doc.InlineShapes.Count + 1):
+                try:
+                    shape = doc.InlineShapes(i)
+                    alt = str(shape.AlternativeText) if shape.AlternativeText else "(无)"
+                    lines.append(
+                        f"[/body/section[1]/inline_shape[{i}] "
+                        f"width={shape.Width} height={shape.Height} "
+                        f"alt_text={alt}]"
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return lines
+
+    def get_stats(self, app: Any) -> dict:
+        """获取纯数字统计信息（参考 OfficeCLI view stats）
+
+        设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+        """
+        doc = app.ActiveDocument
+        stats: dict = {}
+
+        try:
+            stats["pages"] = doc.ComputeStatistics(WD_STATISTIC_PAGES)
+        except Exception:
+            stats["pages"] = 0
+        try:
+            stats["words"] = doc.ComputeStatistics(WD_STATISTIC_WORDS)
+        except Exception:
+            stats["words"] = 0
+        try:
+            stats["characters"] = doc.ComputeStatistics(WD_STATISTIC_CHARACTERS)
+        except Exception:
+            stats["characters"] = 0
+        try:
+            stats["paragraphs"] = doc.Paragraphs.Count
+        except Exception:
+            stats["paragraphs"] = 0
+        try:
+            stats["tables"] = doc.Tables.Count
+        except Exception:
+            stats["tables"] = 0
+        try:
+            stats["inline_shapes"] = doc.InlineShapes.Count
+        except Exception:
+            stats["inline_shapes"] = 0
+
+        # 统计字体种类
+        try:
+            fonts: set[str] = set()
+            for p in doc.Paragraphs:
+                try:
+                    fn = str(p.Range.Font.Name)
+                    if fn:
+                        fonts.add(fn)
+                except Exception:
+                    pass
+            stats["fonts_used"] = len(fonts)
+        except Exception:
+            stats["fonts_used"] = 0
+
+        return stats
 
     @staticmethod
     def _heading_level(style_name: str) -> int:

@@ -35,40 +35,104 @@ _SKILL_TARGETS: dict[str, dict[str, str]] = {
         "description": "VS Code / Cline",
         "path": "~/.vscode/skills/wps-cli.md",
     },
+    "windsurf": {
+        "description": "Windsurf",
+        "path": ".windsurf/skills/wps-cli.md",
+    },
+    "codex": {
+        "description": "Codex CLI",
+        "path": ".agents/skills/wps-cli.md",
+    },
+    "hermes": {
+        "description": "Hermes Agent",
+        "path": ".hermes/skills/wps-cli.md",
+    },
+    "minimax": {
+        "description": "MiniMax CLI",
+        "path": ".minimax/skills/wps-cli.md",
+    },
+    "opencode": {
+        "description": "OpenCode",
+        "path": ".opencode/skills/wps-cli.md",
+    },
+    "nanobot": {
+        "description": "NanoBot",
+        "path": ".nanobot/skills/wps-cli.md",
+    },
+    "zeroclaw": {
+        "description": "ZeroClaw",
+        "path": ".zeroclaw/skills/wps-cli.md",
+    },
+    "openclaw": {
+        "description": "OpenClaw",
+        "path": ".openclaw/skills/wps-cli.md",
+    },
 }
 
 # ── MCP 配置模板（与 mcp_cmd 中一致） ──
+
+_MCP_ENTRY = {
+    "wps-cli": {
+        "command": "wps",
+        "args": ["mcp", "serve"],
+    },
+}
 
 _MCP_TARGETS: dict[str, dict[str, Any]] = {
     "claude": {
         "description": "Claude Code",
         "config_path": "~/.claude/mcp.json",
-        "entry": {
-            "wps-cli": {
-                "command": "wps",
-                "args": ["mcp", "serve"],
-            },
-        },
+        "entry": _MCP_ENTRY,
     },
     "cursor": {
         "description": "Cursor IDE",
         "config_path": ".cursor/mcp.json",
-        "entry": {
-            "wps-cli": {
-                "command": "wps",
-                "args": ["mcp", "serve"],
-            },
-        },
+        "entry": _MCP_ENTRY,
     },
     "vscode": {
         "description": "VS Code / Cline",
         "config_path": "~/.vscode/mcp.json",
-        "entry": {
-            "wps-cli": {
-                "command": "wps",
-                "args": ["mcp", "serve"],
-            },
-        },
+        "entry": _MCP_ENTRY,
+    },
+    "windsurf": {
+        "description": "Windsurf",
+        "config_path": ".windsurf/mcp.json",
+        "entry": _MCP_ENTRY,
+    },
+    "codex": {
+        "description": "Codex CLI",
+        "config_path": ".agents/mcp.json",
+        "entry": _MCP_ENTRY,
+    },
+    "hermes": {
+        "description": "Hermes Agent",
+        "config_path": ".hermes/mcp.json",
+        "entry": _MCP_ENTRY,
+    },
+    "minimax": {
+        "description": "MiniMax CLI",
+        "config_path": ".minimax/mcp.json",
+        "entry": _MCP_ENTRY,
+    },
+    "opencode": {
+        "description": "OpenCode",
+        "config_path": ".opencode/mcp.json",
+        "entry": _MCP_ENTRY,
+    },
+    "nanobot": {
+        "description": "NanoBot",
+        "config_path": ".nanobot/mcp.json",
+        "entry": _MCP_ENTRY,
+    },
+    "zeroclaw": {
+        "description": "ZeroClaw",
+        "config_path": ".zeroclaw/mcp.json",
+        "entry": _MCP_ENTRY,
+    },
+    "openclaw": {
+        "description": "OpenClaw",
+        "config_path": ".openclaw/mcp.json",
+        "entry": _MCP_ENTRY,
     },
 }
 
@@ -101,7 +165,7 @@ def _find_skill_md() -> Path | None:
 
 @app.command()
 def skill(
-    target: str = typer.Option("all", "--target", "-t", help="目标 AI 工具: claude/cursor/vscode/all"),
+    target: str = typer.Option("all", "--target", "-t", help="目标 AI 工具: claude/cursor/vscode/windsurf/codex/hermes/minimax/opencode/nanobot/zeroclaw/openclaw/all"),
 ):
     """安装 SKILL.md 到 AI 工具配置目录
 
@@ -155,7 +219,7 @@ def skill(
 
 @app.command()
 def mcp(
-    target: str = typer.Option("claude", "--target", "-t", help="目标 AI 工具：claude/cursor/vscode"),
+    target: str = typer.Option("claude", "--target", "-t", help="目标 AI 工具：claude/cursor/vscode/windsurf/codex/hermes/minimax/opencode/nanobot/zeroclaw/openclaw"),
 ):
     """安装 MCP 配置到 AI 工具
 
@@ -201,7 +265,7 @@ def mcp(
 
 @app.command()
 def all_tools(
-    target: str = typer.Option("all", "--target", "-t", help="目标 AI 工具: claude/cursor/vscode/all"),
+    target: str = typer.Option("all", "--target", "-t", help="目标 AI 工具: claude/cursor/vscode/windsurf/codex/hermes/minimax/opencode/nanobot/zeroclaw/openclaw/all"),
 ):
     """一键安装 SKILL.md + MCP 配置
 

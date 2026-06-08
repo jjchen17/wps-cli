@@ -221,6 +221,74 @@ def export_pdf(
         handle_error(e, command=cmd, json_mode=json_output)
 
 
+# ── Validate 验证命令 ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command()
+def validate(
+    file: str = typer.Argument(..., help="文件路径"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """验证 PPT 演示文稿完整性
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    检查项: 超链接有效性、嵌入媒体完整性、幻灯片大小一致性、母版引用
+    """
+    cmd = "impress.validate"
+    try:
+        path = _safe_impress_input(file)
+        from wps_cli.services.validate_service import ValidateService
+
+        svc = ValidateService(manager=_get_service().manager)
+        result = svc.validate_impress(path)
+        success(
+            {
+                "passed": result.passed,
+                "file": result.file,
+                "checks": result.checks,
+                "issues_count": result.issues_count,
+                "errors_count": result.errors_count,
+                "warnings_count": result.warnings_count,
+            },
+            command=cmd,
+            json_mode=json_output,
+        )
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── Refresh 刷新命令 ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command()
+def refresh(
+    file: str = typer.Argument(..., help="文件路径"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """刷新演示文稿链接
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    更新所有 OLE 链接、图表数据和嵌入对象。
+    """
+    cmd = "impress.refresh"
+    try:
+        path = _safe_impress_input(file)
+        svc = _get_service()
+        session = _open_pres(svc, path)
+        try:
+            result = svc.refresh(session.app)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
 # ── 语义视图与路径定位（Phase 4）──
 # 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
 
@@ -228,17 +296,20 @@ def export_pdf(
 @app.command("view")
 def view(
     file: str = typer.Argument(..., help="文件路径"),
-    view_type: str = typer.Argument("summary", help="视图类型: summary/issues/slides"),
+    view_type: str = typer.Argument("summary", help="视图类型: summary/issues/slides/annotated/stats"),
+    type_filter: str = typer.Option("", "--type", "-t", help="过滤问题子类型（仅对 issues 视图有效）"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """演示文稿语义视图（参考 OfficeCLI L1 Read）
 
     设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
 
-    支持三种视图:
-      summary  — 演示文稿结构摘要（幻灯片/切换/备注）
-      issues   — 文档诊断（文本溢出/字体/图片/切换时间）
-      slides   — 幻灯片列表概览
+    支持五种视图:
+      summary   — 演示文稿结构摘要（幻灯片/切换/备注）
+      issues    — 文档诊断（文本溢出/字体/图片/切换时间），可用 --type 过滤子类型
+      slides    — 幻灯片列表概览
+      annotated — 带路径标注的形状内容
+      stats     — 纯数字统计
     """
     cmd = f"impress.view_{view_type}"
     try:
@@ -250,14 +321,20 @@ def view(
                 result = svc.summarize(session.app)
             elif view_type == "issues":
                 result = svc.diagnose(session.app)
+                if type_filter:
+                    result = [r for r in result if r.get("subtype", "") == type_filter]
             elif view_type == "slides":
                 result = svc.slide_list(session.app)
+            elif view_type == "annotated":
+                result = svc.annotate(session.app)
+            elif view_type == "stats":
+                result = svc.get_stats(session.app)
             else:
                 from wps_cli.exceptions import ValidationError
 
                 raise ValidationError(
                     f"不支持的视图类型: {view_type}",
-                    suggestion="可选: summary, issues, slides",
+                    suggestion="可选: summary, issues, slides, annotated, stats",
                 )
         finally:
             svc.manager.stop(session.session_id)

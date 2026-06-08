@@ -163,6 +163,53 @@ wps version             # 输出版本号
 | `wps install mcp -t claude` | 安装 MCP 配置到 Claude Code | `wps install mcp -t claude` |
 | `wps install all-tools -t claude` | 一键安装 SKILL.md + MCP | `wps install all-tools -t claude` |
 
+**支持 11 种 AI 工具：**
+
+| 工具名 | 描述 | SKILL.md 路径 | MCP 配置路径 |
+|--------|------|---------------|-------------|
+| `claude` | Claude Code | `~/.claude/skills/wps-cli.md` | `~/.claude/mcp.json` |
+| `cursor` | Cursor IDE | `.cursor/skills/wps-cli.md` | `.cursor/mcp.json` |
+| `vscode` | VS Code / Cline | `~/.vscode/skills/wps-cli.md` | `~/.vscode/mcp.json` |
+| `windsurf` | Windsurf | `.windsurf/skills/wps-cli.md` | `.windsurf/mcp.json` |
+| `codex` | Codex CLI | `.agents/skills/wps-cli.md` | `.agents/mcp.json` |
+| `hermes` | Hermes Agent | `.hermes/skills/wps-cli.md` | `.hermes/mcp.json` |
+| `minimax` | MiniMax CLI | `.minimax/skills/wps-cli.md` | `.minimax/mcp.json` |
+| `opencode` | OpenCode | `.opencode/skills/wps-cli.md` | `.opencode/mcp.json` |
+| `nanobot` | NanoBot | `.nanobot/skills/wps-cli.md` | `.nanobot/mcp.json` |
+| `zeroclaw` | ZeroClaw | `.zeroclaw/skills/wps-cli.md` | `.zeroclaw/mcp.json` |
+| `openclaw` | OpenClaw | `.openclaw/skills/wps-cli.md` | `.openclaw/mcp.json` |
+
+### 批量命令执行 (batch)
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `wps batch -c '[...]'` | 直接传入 JSON 命令数组 | `wps batch -c '[{"command":"calc.cell-set","params":{"file":"a.xlsx","ref":"A1","value":100}}]'` |
+| `wps batch -i cmds.json` | 从文件读取命令数组 | `wps batch -i commands.json` |
+| `wps batch -j` | 从 stdin 读取 JSON（管道友好） | `echo '[...]' \| wps batch -j` |
+| `wps batch -c '[...]' -s` | 遇到错误立即停止 | `wps batch -c '[...]' --stop-on-error` |
+
+默认 **continue-on-error**：一条命令失败不影响后续命令执行。使用 `--stop-on-error` / `-s` 切换为严格模式。
+同一文件在一次 batch 中只打开/保存一次，通过 SessionManager 复用会话。
+如果检测到驻留进程正在运行，batch 自动通过 HTTP 转发到驻留进程执行。
+
+**支持的 batch 命令：** `writer.*` / `calc.*` / `impress.*` / `pdf.*` / `export.*`（与各子命令映射一致）。
+
+**输出格式：**
+```json
+{
+  "success": false,
+  "command": "batch",
+  "data": {
+    "steps": [
+      {"index": 0, "success": true, "command": "writer.replace", "result": {"replaced": 3}},
+      {"index": 1, "success": false, "command": "calc.cell-set", "error": {"type": "ValidationError", "message": "..."}},
+      {"index": 2, "success": true, "command": "calc.cell-formula", "result": {"ref": "A1"}}
+    ],
+    "summary": {"total": 3, "succeeded": 2, "failed": 1}
+  }
+}
+```
+
 ## MCP 工具列表
 
 通过 MCP 服务器暴露给 AI Agent 的工具（JSON-RPC 2.0 over stdio）：
@@ -336,9 +383,20 @@ wps pdf merge final.pdf appendix.pdf -o complete.pdf
 
 ## MCP 配置指南
 
-### Claude Code
+### 自动安装（推荐）
 
-在 `~/.claude/mcp.json` 中添加：
+```bash
+# 安装到所有 11 种 AI 工具
+wps install skill           # 安装 SKILL.md
+wps install mcp -t claude   # 安装 MCP 配置
+wps install all-tools       # 一键安装 SKILL.md + MCP（所有工具）
+wps install all-tools -t windsurf  # 安装到指定工具
+```
+
+### 手动配置
+
+在对应工具的 MCP 配置文件中添加：
+
 ```json
 {
   "wps-cli": {
@@ -348,11 +406,21 @@ wps pdf merge final.pdf appendix.pdf -o complete.pdf
 }
 ```
 
-或运行 `wps mcp install -t claude` 自动配置。
+**各工具配置文件路径：**
 
-### Cursor
-
-在 `.cursor/mcp.json` 中添加相同配置，或运行 `wps mcp install -t cursor`。
+| 工具 | MCP 配置文件 |
+|------|-------------|
+| Claude Code | `~/.claude/mcp.json` |
+| Cursor | `.cursor/mcp.json` |
+| VS Code / Cline | `~/.vscode/mcp.json` |
+| Windsurf | `.windsurf/mcp.json` |
+| Codex CLI | `.agents/mcp.json` |
+| Hermes Agent | `.hermes/mcp.json` |
+| MiniMax CLI | `.minimax/mcp.json` |
+| OpenCode | `.opencode/mcp.json` |
+| NanoBot | `.nanobot/mcp.json` |
+| ZeroClaw | `.zeroclaw/mcp.json` |
+| OpenClaw | `.openclaw/mcp.json` |
 
 ### 验证安装
 

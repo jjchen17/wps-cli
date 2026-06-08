@@ -303,6 +303,210 @@ def merge(
         handle_error(e, command=cmd, json_mode=json_output)
 
 
+# ── Validate 验证命令 ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command()
+def validate(
+    file: str = typer.Argument(..., help="文档路径"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """验证 Word 文档完整性
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    检查项: 拼写错误、超链接有效性、字段状态、嵌入对象、字体可用性、文档结构
+    """
+    cmd = "writer.validate"
+    try:
+        path = _safe_writer_input(file)
+        from wps_cli.services.validate_service import ValidateService
+
+        svc = ValidateService(manager=_get_service().manager)
+        result = svc.validate_writer(path)
+        success(
+            {
+                "passed": result.passed,
+                "file": result.file,
+                "checks": result.checks,
+                "issues_count": result.issues_count,
+                "errors_count": result.errors_count,
+                "warnings_count": result.warnings_count,
+            },
+            command=cmd,
+            json_mode=json_output,
+        )
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── Refresh 刷新命令 ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command()
+def refresh(
+    file: str = typer.Argument(..., help="文档路径"),
+    field: str = typer.Option(
+        "all", "--field", "-f", help="字段类型: all/toc/page"
+    ),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """刷新文档字段
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+    --field all   刷新所有字段和目录
+    --field toc   仅刷新目录
+    --field page  仅刷新 PAGE 等页码字段
+    """
+    cmd = "writer.refresh"
+    try:
+        path = _safe_writer_input(file)
+        if field not in ("all", "toc", "page"):
+            raise ValidationError(
+                f"不支持的字段类型: {field}",
+                suggestion="可选: all, toc, page",
+            )
+        svc = _get_service()
+        session = svc.open_document(path)
+        try:
+            result = svc.refresh_fields(session.app, field if field != "all" else None)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+# ── 表单域与内容控件命令 ──
+# 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+
+
+@app.command("formfield-list")
+def formfield_list(
+    file: str = typer.Argument(..., help="文档路径"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """列出所有表单域（旧式 FormFields）
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+    """
+    cmd = "writer.formfield_list"
+    try:
+        path = _safe_writer_input(file)
+        svc = _get_service()
+        session = svc.open_document(path, readonly=True)
+        try:
+            result = svc.formfield_list(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output, headers=["index", "name", "type", "result"])
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command("formfield-get")
+def formfield_get(
+    file: str = typer.Argument(..., help="文档路径"),
+    index: int = typer.Option(..., "--index", "-i", help="表单域序号（从1开始）"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """获取指定表单域信息
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+    """
+    cmd = "writer.formfield_get"
+    try:
+        path = _safe_writer_input(file)
+        svc = _get_service()
+        session = svc.open_document(path, readonly=True)
+        try:
+            result = svc.formfield_get(session.app, index)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command("formfield-set")
+def formfield_set(
+    file: str = typer.Argument(..., help="文档路径"),
+    index: int = typer.Option(..., "--index", "-i", help="表单域序号（从1开始）"),
+    value: str = typer.Option(..., "--value", "-v", help="新值"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """设置表单域值
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+    """
+    cmd = "writer.formfield_set"
+    try:
+        path = _safe_writer_input(file)
+        svc = _get_service()
+        session = svc.open_document(path)
+        try:
+            svc.formfield_set(session.app, index, value)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success({"index": index, "value": value}, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command("contentcontrol-list")
+def contentcontrol_list(
+    file: str = typer.Argument(..., help="文档路径"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """列出所有内容控件（ContentControls）
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+    """
+    cmd = "writer.contentcontrol_list"
+    try:
+        path = _safe_writer_input(file)
+        svc = _get_service()
+        session = svc.open_document(path, readonly=True)
+        try:
+            result = svc.content_control_list(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success(result, command=cmd, json_mode=json_output, headers=["index", "title", "tag", "type", "text"])
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
+@app.command("contentcontrol-set")
+def contentcontrol_set(
+    file: str = typer.Argument(..., help="文档路径"),
+    index: int = typer.Option(..., "--index", "-i", help="内容控件序号（从1开始）"),
+    text: str = typer.Option(..., "--text", "-t", help="新文本"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
+):
+    """设置内容控件文本
+
+    设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
+    """
+    cmd = "writer.contentcontrol_set"
+    try:
+        path = _safe_writer_input(file)
+        svc = _get_service()
+        session = svc.open_document(path)
+        try:
+            svc.content_control_set(session.app, index, text)
+            svc.save(session.app)
+        finally:
+            svc.manager.stop(session.session_id)
+        success({"index": index, "text": text}, command=cmd, json_mode=json_output)
+    except Exception as e:
+        handle_error(e, command=cmd, json_mode=json_output)
+
+
 # ── 语义视图与路径定位（Phase 4）──
 # 设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
 
@@ -310,17 +514,20 @@ def merge(
 @app.command("view")
 def view(
     file: str = typer.Argument(..., help="文档路径"),
-    view_type: str = typer.Argument("summary", help="视图类型: summary/issues/outline"),
+    view_type: str = typer.Argument("summary", help="视图类型: summary/issues/outline/annotated/stats"),
+    type_filter: str = typer.Option("", "--type", "-t", help="过滤问题子类型（仅对 issues 视图有效）"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON 输出"),
 ):
     """文档语义视图（参考 OfficeCLI L1 Read）
 
     设计参考: iOfficeAI/OfficeCLI (Apache 2.0)
 
-    支持三种视图:
-      summary  — 文档结构摘要（标题/表格/图片）
-      issues   — 文档诊断（字体/布局/图片/样式问题）
-      outline  — 纯标题大纲
+    支持五种视图:
+      summary   — 文档结构摘要（标题/表格/图片）
+      issues    — 文档诊断（字体/布局/图片/样式问题），可用 --type 过滤子类型
+      outline   — 纯标题大纲
+      annotated — 带路径标注的文档内容
+      stats     — 纯数字统计
     """
     cmd = f"writer.view_{view_type}"
     try:
@@ -332,12 +539,18 @@ def view(
                 result = svc.summarize(session.app)
             elif view_type == "issues":
                 result = svc.diagnose(session.app)
+                if type_filter:
+                    result = [r for r in result if r.get("subtype", "") == type_filter]
             elif view_type == "outline":
                 result = svc.summarize(session.app)["headings"]
+            elif view_type == "annotated":
+                result = svc.annotate(session.app)
+            elif view_type == "stats":
+                result = svc.get_stats(session.app)
             else:
                 raise ValidationError(
                     f"不支持的视图类型: {view_type}",
-                    suggestion="可选: summary, issues, outline",
+                    suggestion="可选: summary, issues, outline, annotated, stats",
                 )
         finally:
             svc.manager.stop(session.session_id)
