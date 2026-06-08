@@ -195,54 +195,66 @@ JSON 输出统一为：
 
 ---
 
----
+## Claude Code Skill
 
-## AI Agent 集成
+wps-cli 是一个标准的 **Claude Code Skill** — 安装后 Claude Code 可在你需要操作办公文档时自动加载全部 75 条命令的知识。
 
-### MCP 服务器
-
-内置 MCP (Model Context Protocol) 服务器，将全部文档操作能力通过 JSON-RPC 2.0 over stdio 暴露给 AI Agent：
+### 三步安装
 
 ```bash
-wps mcp serve                # 启动 MCP stdio 服务器
-wps mcp install --target claude  # 一键注册到 Claude Code
-wps mcp status               # 检查注册状态
+pip install wps-cli                        # Step 1: 安装 CLI
+wps install all-tools -t claude           # Step 2: 安装 Skill + MCP 到 Claude Code
+# Step 3: 重启 Claude Code，然后直接说"帮我生成一份销售报告 xlsx"
 ```
 
-支持 Claude Code、Cursor、VS Code Copilot 等所有兼容 MCP 协议的 AI 工具。
+安装后 Claude Code 自动获得以下能力：
 
-> 设计借鉴：此功能设计参考了 [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) 的 MCP 集成方案。
+| 你说 | Claude Code 自动执行 |
+|------|--------------------|
+| "把这份合同模板填上客户信息" | `wps writer merge` 模板合并 |
+| "分析这个 Excel 销售数据做个柱状图" | `wps calc chart-create` 图表创建 |
+| "把这三个 PDF 合并成一个" | `wps pdf merge` PDF 合并 |
+| "把所有 docx 转成 PDF" | `wps export batch` 批量转换 |
+| "检查这个文档有没问题" | `wps writer validate` 文档诊断 |
 
-### SKILL.md 自动安装
-
-```bash
-wps install skill            # 安装到所有检测到的 AI 工具（推荐：标准 skill 包，含模块化参考文档）
-wps install skill --target claude  # 仅安装到 Claude Code
-wps install all-tools        # 一键安装 SKILL.md + MCP 配置
-```
-
-AI Agent 可通过阅读 SKILL.md 自主学习全部 75 条命令的用法。
-
-安装时优先使用标准 skill 包（`skills/wps-cli/` 目录，含 YAML frontmatter + 模块化参考文档），如不可用则回退到单文件安装。skill 包结构：
+### Skill 包结构
 
 ```
 skills/wps-cli/
 ├── SKILL.md                    # 入口：决策树 + 核心概念 + 使用须知
 └── references/
     ├── commands.md             # 75 条命令完整速查表
-    ├── patterns.md             # 8 大常见使用模式
+    ├── patterns.md             # 8 大常见使用模式（模板填充/报表/批量转换…）
     ├── mcp.md                  # MCP 服务器配置与 27 个工具列表
     └── json-schema.md          # JSON 输出格式、错误 Schema、退出码语义
 ```
 
-### Claude Code 插件市场（可选）
+### 支持的 AI 工具（11 种）
 
-项目包含 `.claude-plugin/plugin.json`，支持通过 [Claude Code 插件市场](https://code.claude.com/docs/en/plugins) 安装：
+`wps install` 可一键安装到 Claude Code / Cursor / VS Code / Windsurf / Codex / Hermes / MiniMax / OpenCode / NanoBot / ZeroClaw / OpenClaw。
+
+### 插件市场（可选）
 
 ```bash
 /plugin marketplace add jjchen17/wps-cli
 /plugin install wps-cli
 ```
+
+---
+
+## MCP 服务器
+
+内置 MCP (Model Context Protocol) 服务器，将全部文档操作能力通过 JSON-RPC 2.0 over stdio 暴露给 AI Agent：
+
+```bash
+wps mcp serve                     # 启动 MCP stdio 服务器
+wps mcp install --target claude   # 一键注册到 Claude Code
+wps mcp status                    # 检查注册状态
+```
+
+支持 Claude Code、Cursor、VS Code Copilot 等所有兼容 MCP 协议的 AI 工具。
+
+> 设计借鉴：此功能设计参考了 [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0) 的 MCP 集成方案。
 
 ---
 
