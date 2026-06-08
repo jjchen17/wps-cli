@@ -141,8 +141,29 @@ def _resolve_path(path_str: str) -> Path:
     return Path(os.path.expanduser(path_str))
 
 
+def _find_skill_dir() -> Path | None:
+    """查找项目的 skills/wps-cli/ 目录（标准 skill 包）"""
+    try:
+        import wps_cli
+
+        pkg_dir = Path(wps_cli.__file__).parent.parent  # src/
+    except Exception:
+        pkg_dir = Path.cwd() / "src"
+
+    candidates = [
+        pkg_dir / ".." / "skills" / "wps-cli",        # 项目根目录/skills/wps-cli
+        pkg_dir / ".." / ".." / "skills" / "wps-cli", # 进一步向上
+        Path.cwd() / "skills" / "wps-cli",             # 当前工作目录
+    ]
+    for c in candidates:
+        resolved = c.resolve()
+        if resolved.is_dir() and (resolved / "SKILL.md").exists():
+            return resolved
+    return None
+
+
 def _find_skill_md() -> Path | None:
-    """查找项目的 SKILL.md 文件"""
+    """查找项目的 SKILL.md 文件（单文件回退）"""
     # 优先从安装位置查找
     try:
         import wps_cli
@@ -163,14 +184,42 @@ def _find_skill_md() -> Path | None:
     return None
 
 
+def _copy_skill_dir(src_dir: Path, dest_parent: Path) -> Path:
+    """递归复制 skill 目录到目标位置"""
+    dest_dir = dest_parent  # 直接使用目标目录路径
+    if dest_dir.exists():
+        shutil.rmtree(dest_dir)
+    shutil.copytree(src_dir, dest_dir)
+    return dest_dir / "SKILL.md"
+
+
+def _get_skill_target_dir(target: str) -> Path:
+    """获取指定 AI 工具的 skill 安装目录路径"""
+    # skill 目录安装路径（不含 .md 后缀）
+    if target == "claude":
+        return _resolve_path("~/.claude/skills/wps-cli")
+    elif target == "cursor":
+        return _resolve_path(".cursor/skills/wps-cli")
+    elif target == "vscode":
+        return _resolve_path("~/.vscode/skills/wps-cli")
+    else:
+        # 其他工具使用统一模式
+        tpl = _SKILL_TARGETS.get(target, {})
+        path_str = tpl.get("path", f"~/.{target}/skills/wps-cli.md")
+        # 如果路径以 .md 结尾，改为目录
+        if path_str.endswith(".md"):
+            path_str = path_str[:-3]
+        return _resolve_path(path_str)
+
+
 @app.command()
 def skill(
     target: str = typer.Option("all", "--target", "-t", help="目标 AI 工具: claude/cursor/vscode/windsurf/codex/hermes/minimax/opencode/nanobot/zeroclaw/openclaw/all"),
 ):
     """安装 SKILL.md 到 AI 工具配置目录
 
-    将项目的 SKILL.md 复制到指定 AI 工具的 skills 目录，
-    让 AI 工具能够学习 wps-cli 的使用方法。
+    优先使用标准 skill 包（skills/wps-cli/ 目录，含模块化参考文档），
+    如不可用则回退到单文件安装。
 
     示例::
 
@@ -180,11 +229,6 @@ def skill(
     """
     cmd = "install.skill"
     try:
-        skill_file = _find_skill_md()
-        if skill_file is None:
-            typer.echo("错误: 找不到 SKILL.md 文件。请确保在 wps-cli 项目目录下运行。", err=True)
-            raise typer.Exit(1)
-
         if target == "all":
             target_list = list(_SKILL_TARGETS.keys())
         elif target not in _SKILL_TARGETS:
@@ -194,25 +238,52 @@ def skill(
         else:
             target_list = [target]
 
+        # 优先查找标准 skill 目录
+        skill_dir = _find_skill_dir()
+        skill_file = _find_skill_md() if skill_dir is None else None
+
+        if skill_dir is None and skill_file is None:
+            typer.echo("错误: 找不到 SKILL.md 或 skills/wps-cli/ 目录。请确保在 wps-cli 项目目录下运行。", err=True)
+            raise typer.Exit(1)
+
         installed = []
         for t in target_list:
             tpl = _SKILL_TARGETS[t]
-            dest = _resolve_path(tpl["path"])
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(skill_file, dest)
-            installed.append({
-                "target": t,
-                "description": tpl["description"],
-                "path": str(dest),
-            })
+
+            if skill_dir is not None:
+                # 标准 skill 包：目录级安装
+                dest_dir = _get_skill_target_dir(t)
+                dest_dir.parent.mkdir(parents=True, exist_ok=True)
+                _copy_skill_dir(skill_dir, dest_dir)
+                installed.append({
+                    "target": t,
+                    "description": tpl["description"],
+                    "path": str(dest_dir),
+                    "type": "directory",
+                })
+            else:
+                # 单文件回退
+                dest = _resolve_path(tpl["path"])
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(skill_file, dest)  # type: ignore[arg-type]
+                installed.append({
+                    "target": t,
+                    "description": tpl["description"],
+                    "path": str(dest),
+                    "type": "file",
+                })
 
         success(
-            {"source": str(skill_file), "installed": installed},
+            {
+                "source": str(skill_dir if skill_dir else skill_file),
+                "installed": installed,
+            },
             command=cmd,
             json_mode=True,
         )
+        typer.echo(f"\n安装模式: {'skill 包目录（含模块化参考文档）' if skill_dir else '单文件（回退模式）'}\n")
         for item in installed:
-            typer.echo(f"  {item['target']}: {item['path']}")
+            typer.echo(f"  {item['target']}: {item['path']} ({item['type']})")
     except Exception as e:
         handle_error(e, command=cmd, json_mode=True)
 

@@ -1,14 +1,14 @@
 # WPS CLI
 
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Commands](https://img.shields.io/badge/commands-56-important)]()
+[![Commands](https://img.shields.io/badge/commands-75-important)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)]()
 [![WPS](https://img.shields.io/badge/requires-WPS%20Office%202019%2B-C00000)]()
 [![PyPI](https://img.shields.io/pypi/v/wps-cli)](https://pypi.org/project/wps-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/wps-cli)](https://pypi.org/project/wps-cli/)
 
-在终端里指挥 WPS Office 干活 — 真格式、真排版、56 条命令。
+在终端里指挥 WPS Office 干活 — 真格式、真排版、75 条命令。
 
 > **不是"所见即所猜"，是所见即所得。** 不模拟文件格式，直接驱动真实的 WPS 引擎。
 
@@ -41,7 +41,7 @@
 |---|---|---|
 | **100% 格式保真** | 不是解析文件，是直接指挥 WPS 引擎干活 | 所见即所得，不是所见即所猜 |
 | **AI Agent 原生支持** | 所有命令支持 `--json` 输出，统一 schema | 天生适配 LLM Agent 和自动化流水线 |
-| **一把梭四件套** | Writer / Calc / Impress / PDF，56 条命令 | 办公自动化一个工具全搞定 |
+| **一把梭四件套** | Writer / Calc / Impress / PDF，75 条命令 | 办公自动化一个工具全搞定 |
 
 ---
 
@@ -216,12 +216,33 @@ wps mcp status               # 检查注册状态
 ### SKILL.md 自动安装
 
 ```bash
-wps install skill            # 安装到所有检测到的 AI 工具
+wps install skill            # 安装到所有检测到的 AI 工具（推荐：标准 skill 包，含模块化参考文档）
 wps install skill --target claude  # 仅安装到 Claude Code
 wps install all-tools        # 一键安装 SKILL.md + MCP 配置
 ```
 
-AI Agent 可通过阅读 SKILL.md 自主学习全部 56 条命令的用法。
+AI Agent 可通过阅读 SKILL.md 自主学习全部 75 条命令的用法。
+
+安装时优先使用标准 skill 包（`skills/wps-cli/` 目录，含 YAML frontmatter + 模块化参考文档），如不可用则回退到单文件安装。skill 包结构：
+
+```
+skills/wps-cli/
+├── SKILL.md                    # 入口：决策树 + 核心概念 + 使用须知
+└── references/
+    ├── commands.md             # 75 条命令完整速查表
+    ├── patterns.md             # 8 大常见使用模式
+    ├── mcp.md                  # MCP 服务器配置与 27 个工具列表
+    └── json-schema.md          # JSON 输出格式、错误 Schema、退出码语义
+```
+
+### Claude Code 插件市场（可选）
+
+项目包含 `.claude-plugin/plugin.json`，支持通过 [Claude Code 插件市场](https://code.claude.com/docs/en/plugins) 安装：
+
+```bash
+/plugin marketplace add jjchen17/wps-cli
+/plugin install wps-cli
+```
 
 ---
 

@@ -2,7 +2,13 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.2.0] - Unreleased
+
+### Added — 📦 Claude Code Skill 标准封装
+- **标准 skill 包**：创建 `skills/wps-cli/` 目录，含 YAML frontmatter + 模块化参考文档（commands/patterns/mcp/json-schema），符合 Claude Code skill 标准格式。
+- **`.claude-plugin/plugin.json`**：支持通过 Claude Code 插件市场安装（`/plugin marketplace add jjchen17/wps-cli`）。
+- **`wps install skill` 升级**：优先使用目录级安装（含模块化参考文档），回退单文件兼容。
+- **SKILL.md YAML frontmatter**：添加 `name` + `description` 元数据，description 包含中英双语触发词，提升 AI Agent 自动调用率。
 
 ### Added — 📊 文档诊断增强（借鉴 OfficeCLI）
 - **Issue 子类型体系**：22 种标准化 subtype 常量（`formula_eval_error`/`definedname_broken`/`number_as_text` 等），所有 diagnose 方法输出稳定机器可读标识符。
