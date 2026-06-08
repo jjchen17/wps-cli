@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import os as os_module
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,10 +14,8 @@ from wps_cli.cli.install_cmd import (
     _find_skill_dir,
     _find_skill_md,
     _get_skill_target_dir,
-    _SKILL_TARGETS,
 )
 from wps_cli.main import app as main_app
-
 
 # ── helpers ──
 
