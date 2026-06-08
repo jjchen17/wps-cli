@@ -1,6 +1,6 @@
 ---
 name: wps-cli
-description: "通过 WPS Office COM 自动化操作 Word/Excel/PPT/PDF。75 条 CLI 命令，100% 格式保真，--json 输出适配 AI Agent。触发词：wps, word, excel, ppt, pdf, 文档, 表格, 演示, 公文, 模板, 办公自动化, WPS Office, docx, xlsx, pptx, 合并PDF, 格式转换。When you need to: create/edit/programmatically manipulate Office documents on Windows via WPS COM automation."
+description: "通过 WPS Office COM 自动化操作 Word/Excel/PPT/PDF。76 条 CLI 命令，100% 格式保真，--json 输出适配 AI Agent。触发词：wps, word, excel, ppt, pdf, 文档, 表格, 演示, 公文, 模板, 办公自动化, WPS Office, docx, xlsx, pptx, 合并PDF, 格式转换。When you need to: create/edit/programmatically manipulate Office documents on Windows via WPS COM automation."
 ---
 # 设计参考: iOfficeAI/OfficeCLI (Apache 2.0, https://github.com/iOfficeAI/OfficeCLI)
 

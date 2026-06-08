@@ -1,14 +1,14 @@
 # WPS CLI
 
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Commands](https://img.shields.io/badge/commands-75-important)]()
+[![Commands](https://img.shields.io/badge/commands-76-important)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)]()
 [![WPS](https://img.shields.io/badge/requires-WPS%20Office%202019%2B-C00000)]()
 [![PyPI](https://img.shields.io/pypi/v/wps-cli)](https://pypi.org/project/wps-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/wps-cli)](https://pypi.org/project/wps-cli/)
 
-Drive WPS Office from the terminal — real formatting, real layout, 75 commands.
+Drive WPS Office from the terminal — real formatting, real layout, 76 commands.
 
 > Not "guess what you see" — **what you see is what you get**. Don't simulate the file format, just drive the actual WPS engine.
 
@@ -41,7 +41,7 @@ When you set "Heiti, size 3, bold," it actually executes that operation inside W
 |---|---|---|
 | **100% formatting fidelity** | Not parsing files — directly commanding the WPS engine | What you see is what you get |
 | **AI Agent native** | All commands support `--json` with a unified schema | Built for LLM agents and automation pipelines |
-| **One tool for four apps** | Writer / Calc / Impress / PDF, 75 commands | Office automation in one place |
+| **One tool for four apps** | Writer / Calc / Impress / PDF, 76 commands | Office automation in one place |
 
 ---
 
@@ -81,20 +81,62 @@ wps export convert budget.xlsx pdf
 
 ```
 wps
-├── writer    Word docs    (new, info, replace, count, table-insert, table-get,
-│                            image-insert, page-setup, style-apply, export-pdf,
-│                            merge, view, get)
-├── calc      Excel        (new, info, sheet-list, cell-get/-set/-range/-formula,
-│                            chart-create, sort, export-csv, view, get)
-├── impress   PPT          (new, info, slide-list/-add/-delete,
-│                            text-set/-get, image-insert, export-pdf, view, get)
-├── pdf       PDF          (info, merge, extract-pages, split, watermark)
-├── export    Conversion   (convert, batch)
-├── resident  Resident     (start, stop, status, sessions, open, close)
-├── mcp       MCP Server   (serve, install, status)
-├── install   AI Tools     (skill, mcp, all-tools)
-├── version   Print version
-└── doctor    Environment diagnostics
+├── writer          Word documents
+│   ├── new / info
+│   ├── replace / count
+│   ├── table-insert / table-get
+│   ├── image-insert
+│   ├── page-setup
+│   ├── style-apply
+│   ├── merge       ★ Template merge: {{key}} placeholder replacement
+│   ├── view        ★ Semantic views: summary / issues / outline / annotated / stats
+│   ├── validate    ★ Document validation: spelling / links / field integrity
+│   ├── refresh     ★ Refresh fields: TOC / PAGE / cross-references
+│   ├── formfield-* ★ Form fields: list / get / set
+│   ├── contentcontrol-* ★ Content controls: list / set
+│   ├── get         ★ Path addressing: /section[1]/paragraph[3]
+│   └── export-pdf
+├── calc            Excel spreadsheets
+│   ├── new / info
+│   ├── sheet-list
+│   ├── cell-get / cell-set / cell-range / cell-formula
+│   ├── chart-create
+│   ├── sort
+│   ├── view        ★ Semantic views: summary / issues / sheets
+│   ├── validate    ★ Document validation
+│   ├── refresh     ★ Refresh formulas / pivot tables
+│   ├── conditional-format-* ★ Conditional formatting
+│   ├── data-validation-* ★ Data validation
+│   ├── sparkline-add ★ Sparklines
+│   ├── get         ★ Path addressing: /sheet["Sheet1"]/cell["A1"]
+│   └── export-csv
+├── impress         PPT presentations
+│   ├── new / info
+│   ├── slide-list / slide-add / slide-delete
+│   ├── text-set / text-get / image-insert
+│   ├── view        ★ Semantic views: summary / issues / slides
+│   ├── validate    ★ Document validation
+│   ├── refresh     ★ Refresh links
+│   ├── get         ★ Path addressing: /slide[1]/shape[2]
+│   └── export-pdf
+├── pdf             PDF processing
+│   ├── info
+│   ├── merge / extract-pages / split
+│   └── watermark
+├── export          Format conversion
+│   ├── convert
+│   └── batch
+├── resident        ★ Resident mode: keep COM process alive for faster operations
+│   ├── start / stop / status / sessions
+│   └── open / close
+├── mcp             ★ MCP server: expose operations via JSON-RPC for AI Agents
+│   ├── serve / install / status
+├── batch           ★ Batch commands: JSON array bulk execution
+├── dump            ★ Document serialization: generate replayable batch JSON
+├── install         ★ AI tool integration: auto-install SKILL.md and MCP config
+│   ├── skill / mcp / all-tools
+├── version         Print version info
+└── doctor          Environment diagnostics
 ```
 
 All commands support `--json` for AI-friendly structured output:
@@ -134,33 +176,66 @@ On error:
 
 ---
 
+## Claude Code Skill
+
+wps-cli is a standard **Claude Code Skill** — once installed, Claude Code automatically loads knowledge of all 76 commands when you need to work with Office documents.
+
+### 3-Step Install
+
+```bash
+pip install wps-cli                          # Step 1: Install CLI
+wps install all-tools -t claude             # Step 2: Install Skill + MCP to Claude Code
+# Step 3: Restart Claude Code, then say "generate a sales report in Excel"
+```
+
+Claude Code can then auto-execute:
+
+| You say | Claude Code executes |
+|---------|---------------------|
+| "Fill this contract template with client info" | `wps writer merge` template fill |
+| "Analyze this Excel sales data and make a chart" | `wps calc chart-create` |
+| "Merge these three PDFs" | `wps pdf merge` |
+| "Convert all docx files to PDF" | `wps export batch` |
+| "Check this document for issues" | `wps writer validate` |
+
+### Skill Package Structure
+
+```
+skills/wps-cli/
+├── SKILL.md                    # Entry: decision tree + core concepts + usage notes
+└── references/
+    ├── commands.md             # 76 commands quick reference
+    ├── patterns.md             # 8 common patterns (template fill/reports/batch...)
+    ├── mcp.md                  # MCP server setup & 27 tools
+    └── json-schema.md          # JSON output format, error schema, exit codes
+```
+
+### 11 Supported AI Tools
+
+`wps install` one-click installs to Claude Code / Cursor / VS Code / Windsurf / Codex / Hermes / MiniMax / OpenCode / NanoBot / ZeroClaw / OpenClaw.
+
+### Plugin Marketplace (optional)
+
+```bash
+/plugin marketplace add jjchen17/wps-cli
+/plugin install wps-cli
+```
+
 ---
 
-## AI Agent Integration
-
-### MCP Server
+## MCP Server
 
 Built-in MCP (Model Context Protocol) server exposes all document operations via JSON-RPC 2.0 over stdio:
 
 ```bash
-wps mcp serve                # Start MCP stdio server
-wps mcp install --target claude  # Register with Claude Code
-wps mcp status               # Check registration status
+wps mcp serve                     # Start MCP stdio server
+wps mcp install --target claude   # Register with Claude Code
+wps mcp status                    # Check registration status
 ```
 
 Supports Claude Code, Cursor, VS Code Copilot and all MCP-compatible AI tools.
 
 > Design reference: [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) (Apache 2.0)
-
-### SKILL.md Auto-Install
-
-```bash
-wps install skill              # Install for all detected AI tools
-wps install skill --target claude  # Claude Code only
-wps install all-tools          # Install SKILL.md + MCP config
-```
-
-AI Agents can learn all 75 commands by reading the SKILL.md skill file.
 
 ---
 

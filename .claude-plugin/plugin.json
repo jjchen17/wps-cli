@@ -1,7 +1,7 @@
 {
   "name": "wps-cli",
   "version": "0.2.0",
-  "description": "通过 WPS Office COM 自动化驱动 Word/Excel/PPT/PDF — 56 条 CLI 命令，100% 格式保真，内置 MCP 服务器，适配 AI Agent 和自动化流水线",
+  "description": "通过 WPS Office COM 自动化驱动 Word/Excel/PPT/PDF — 76 条 CLI 命令，100% 格式保真，内置 MCP 服务器，适配 AI Agent 和自动化流水线",
   "author": "jjchen17",
   "license": "MIT",
   "homepage": "https://github.com/jjchen17/wps-cli",
@@ -12,7 +12,7 @@
     {
       "name": "wps-cli",
       "path": "skills/wps-cli/SKILL.md",
-      "description": "WPS Office 全量办公文档操作 — 56 条命令覆盖 Writer/Calc/Impress/PDF/Export"
+      "description": "WPS Office 全量办公文档操作 — 76 条命令覆盖 Writer/Calc/Impress/PDF/Export"
     }
   ],
   "requirements": {

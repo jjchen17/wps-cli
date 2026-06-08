@@ -4,6 +4,16 @@
 
 ## [0.2.0] - Unreleased
 
+### Security — 🛡️ 公式注入防护增强（CRITICAL + HIGH 修复）
+- **条件格式公式注入修复 (CRITICAL)**：`conditional_format_add` 的 `formulabased` 类型现在调用 `_check_formula_safe()` 校验 formula1，防止通过条件格式绕过公式安全检查。
+- **数据验证公式注入修复 (CRITICAL)**：`data_validation_add` 对所有以 `=` 开头的 formula1/formula2 调用 `_check_formula_safe()`。
+- **contains/notcontains 回退路径注入修复 (CRITICAL)**：对 `formula1` 做双引号转义后再拼接，并对拼接后的完整公式调用 `_check_formula_safe()`。
+- **Unicode 同形字防护 (HIGH)**：`_check_formula_safe` 新增 NFKC 规范化（`unicodedata.normalize('NFKC', ...)`），防止全角同形字绕过危险函数检测。
+- **MCP 错误路径脱敏 (HIGH)**：`call_tool` 所有错误分支对 `str(e)` 调用 `redact_path()`，防止文件路径泄露到 AI Agent 上下文。
+- **驻留模式路径校验 (HIGH)**：`open_document` 现在调用 `ensure_safe_input_path()`，防止通过 HTTP API 绕过路径安全检查。
+- **驻留模式认证 (HIGH)**：启动时生成随机 256-bit Token，所有 HTTP 请求需携带 `Authorization: Bearer <token>`，Token 通过临时文件自动传递。
+- **驻留模式请求体限制 (HIGH)**：`_read_body` 新增 10MB 请求体上限，防止 OOM/DoS。
+
 ### Added — 📦 Claude Code Skill 标准封装
 - **标准 skill 包**：创建 `skills/wps-cli/` 目录，含 YAML frontmatter + 模块化参考文档（commands/patterns/mcp/json-schema），符合 Claude Code skill 标准格式。
 - **`.claude-plugin/plugin.json`**：支持通过 Claude Code 插件市场安装（`/plugin marketplace add jjchen17/wps-cli`）。
@@ -48,7 +58,7 @@
 - 新增 23 个 COM 诊断单元测试。
 
 ### Added — 🚀 全面升级（借鉴 OfficeCLI 设计理念）
-- **MCP 服务器**：内置 JSON-RPC 2.0 over stdio MCP 服务器，零外部依赖，暴露 26 个 tool（Writer 8 + Calc 7 + Impress 5 + PDF 5 + Export 1）。
+- **MCP 服务器**：内置 JSON-RPC 2.0 over stdio MCP 服务器，零外部依赖，暴露 27 个 tool（Writer 8 + Calc 7 + Impress 5 + PDF 5 + Export 2）。
   - CLI 命令：`wps mcp serve|install|status`，支持一键注册到 Claude Code / Cursor / VS Code。
   - 设计借鉴：iOfficeAI/OfficeCLI (Apache 2.0)
 - **SKILL.md**：~390 行中文 AI Agent 教学文件，覆盖全部命令速查、典型模式、JSON schema 和退出码语义。

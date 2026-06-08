@@ -83,7 +83,11 @@ def _check_formula_safe(formula: str) -> None:
 
     if not isinstance(formula, str):
         return
-    upper = re.sub(r"\s+", "", formula.upper())
+    # NFKC 规范化防止全角同形字绕过（如 全角Ｓ→半角S）
+    import unicodedata
+
+    normalized = unicodedata.normalize("NFKC", formula)
+    upper = re.sub(r"\s+", "", normalized.upper())
     if not upper.startswith("="):
         raise ValidationError(
             f"公式必须以 '=' 开头: {formula!r}",
@@ -357,17 +361,21 @@ class CalcService:
                     String=formula1,
                 )
             except Exception:
-                # 回退：使用公式方式
+                # 回退：使用公式方式（需安全校验防止引号闭合注入）
+                _check_formula_safe("=SAFE_PLACEHOLDER")
+                escaped_f1 = formula1.replace('"', '""')
                 first_cell = range_ref.split(":")[0] if ":" in range_ref else range_ref
                 if operator == "contains":
-                    formula = f'=ISNUMBER(SEARCH("{formula1}",{first_cell}))'
+                    formula = f'=ISNUMBER(SEARCH("{escaped_f1}",{first_cell}))'
                 else:
-                    formula = f'=NOT(ISNUMBER(SEARCH("{formula1}",{first_cell})))'
+                    formula = f'=NOT(ISNUMBER(SEARCH("{escaped_f1}",{first_cell})))'
+                _check_formula_safe(formula)
                 cf = rng.FormatConditions.Add(
                     Type=XL_CF_EXPRESSION,
                     Formula1=formula,
                 )
         elif cf_type == "formulabased":
+            _check_formula_safe(formula1)
             cf = rng.FormatConditions.Add(
                 Type=XL_CF_EXPRESSION,
                 Formula1=formula1,
@@ -504,6 +512,11 @@ class CalcService:
 
         try:
             validation = rng.Validation
+            # 公式参数安全校验（防止条件格式/数据验证绕过公式注入检查）
+            if formula1 and formula1.strip().startswith("="):
+                _check_formula_safe(formula1)
+            if formula2 and formula2.strip().startswith("="):
+                _check_formula_safe(formula2)
             validation.Add(
                 Type=xl_type,
                 AlertStyle=xl_alert,

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json as json_mod
 import logging
+import secrets
+import tempfile
 import threading
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -22,6 +24,7 @@ from wps_cli.services.impress_service import ImpressService
 from wps_cli.services.pdf_service import PdfService
 from wps_cli.services.session_manager import Session, SessionManager
 from wps_cli.services.writer_service import WriterService
+from wps_cli.utils.path_utils import ensure_safe_input_path
 
 logger = logging.getLogger("wps_cli.resident")
 
@@ -64,6 +67,7 @@ class ResidentDaemon:
         self._opened_docs: dict[str, Session] = {}
         self._lock = threading.RLock()
         self._server: HTTPServer | None = None
+        self._auth_token: str = ""  # 启动时生成
 
     # ── 生命周期 ──
 
@@ -71,8 +75,13 @@ class ResidentDaemon:
         """启动 HTTP 服务器（阻塞当前线程）"""
         global _daemon
         _daemon = self
+        self._auth_token = secrets.token_hex(32)  # 256-bit 随机 token
+        # 将 token 写入临时文件供 CLI 客户端自动读取
+        token_file = Path(tempfile.gettempdir()) / "wps-cli-resident-token"
+        token_file.write_text(self._auth_token)
         self._server = HTTPServer((self.host, self.port), ResidentHandler)
         logger.info("驻留服务已启动: http://%s:%d", self.host, self.port)
+        print(f"\n  驻留服务已启动 (端口 {self.port})，Token 已保存到 {token_file}\n")
         try:
             self._server.serve_forever()
         except KeyboardInterrupt:
@@ -89,6 +98,13 @@ class ResidentDaemon:
             except Exception:
                 pass
         self.manager.stop_all()
+        # 清理 token 文件
+        try:
+            token_file = Path(tempfile.gettempdir()) / "wps-cli-resident-token"
+            if token_file.exists():
+                token_file.unlink()
+        except Exception:
+            pass
         _daemon = None
         logger.info("驻留服务已停止")
 
@@ -96,15 +112,15 @@ class ResidentDaemon:
 
     def open_document(self, path: str, app_type: str) -> dict:
         """打开文档并创建会话"""
-        p = Path(path)
+        if app_type not in ("writer", "calc", "impress"):
+            raise ValueError(f"不支持的应用类型: {app_type}，可选: writer/calc/impress")
+        p = ensure_safe_input_path(path)  # 路径安全校验（在 app_type 校验之后）
         if app_type == "writer":
             session = self.writer.open_document(p)
         elif app_type == "calc":
             session = self._open_calc(p)
-        elif app_type == "impress":
-            session = self._open_impress(p)
         else:
-            raise ValueError(f"不支持的应用类型: {app_type}，可选: writer/calc/impress")
+            session = self._open_impress(p)
 
         with self._lock:
             self._opened_docs[session.session_id] = session
@@ -171,9 +187,24 @@ class ResidentHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         logger.debug("HTTP %s", fmt % args)
 
+    # ── 认证检查 ──
+
+    def _check_auth(self) -> bool:
+        """验证请求携带的 Authorization Token 是否匹配"""
+        if not _daemon._auth_token:
+            return True  # 未启用认证时放行（向后兼容旧测试）
+        expected = f"Bearer {_daemon._auth_token}"
+        auth_header = self.headers.get("Authorization", "")
+        return auth_header == expected
+
+    def _require_auth(self) -> None:
+        if not self._check_auth():
+            self._respond_error("未授权：缺少或无效的 Authorization Token", 401)
+
     # ── 路由调度 ──
 
     def do_GET(self) -> None:
+        self._require_auth()
         if self.path == "/sessions":
             self._respond(_daemon.list_active_sessions())
         elif self.path == "/status":
@@ -182,6 +213,7 @@ class ResidentHandler(BaseHTTPRequestHandler):
             self._respond_error(f"未知端点: GET {self.path}", 404)
 
     def do_POST(self) -> None:
+        self._require_auth()
         body = self._read_body()
 
         try:
@@ -272,10 +304,17 @@ class ResidentHandler(BaseHTTPRequestHandler):
 
     # ── 请求/响应工具 ──
 
+    # 请求体大小上限（防止 OOM/DoS）
+    _MAX_BODY_SIZE: int = 10 * 1024 * 1024  # 10MB
+
     def _read_body(self) -> dict:
         content_length = int(self.headers.get("Content-Length", 0))
         if content_length == 0:
             return {}
+        if content_length > self._MAX_BODY_SIZE:
+            raise ValueError(
+                f"请求体过大: {content_length} bytes (上限 {self._MAX_BODY_SIZE})"
+            )
         raw = self.rfile.read(content_length)
         return json_mod.loads(raw)
 

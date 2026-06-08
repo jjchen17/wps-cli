@@ -22,6 +22,7 @@ from wps_cli.services.impress_service import ImpressService
 from wps_cli.services.pdf_service import PdfService
 from wps_cli.services.session_manager import SessionManager
 from wps_cli.services.writer_service import WriterService
+from wps_cli.utils.path_utils import redact_path
 
 # ── JSON-RPC 2.0 常量 ─────────────────────────────────────────────
 
@@ -497,19 +498,22 @@ class WpsMcpServer:
             result = handler(arguments)
             return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False, default=str)}]}
         except WpsCliError as e:
+            safe_msg = redact_path(str(e))
+            safe_sug = redact_path(str(e.suggestion)) if e.suggestion else ""
             return {
                 "content": [{"type": "text", "text": json.dumps({
                     "error": type(e).__name__,
-                    "message": str(e),
-                    "suggestion": e.suggestion,
+                    "message": safe_msg,
+                    "suggestion": safe_sug,
                 }, ensure_ascii=False)}],
                 "isError": True,
             }
         except Exception as e:
+            safe_msg = redact_path(str(e))
             return {
                 "content": [{"type": "text", "text": json.dumps({
                     "error": type(e).__name__,
-                    "message": str(e),
+                    "message": safe_msg,
                 }, ensure_ascii=False)}],
                 "isError": True,
             }

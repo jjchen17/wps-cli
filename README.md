@@ -1,14 +1,14 @@
 # WPS CLI
 
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Commands](https://img.shields.io/badge/commands-75-important)]()
+[![Commands](https://img.shields.io/badge/commands-76-important)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)]()
 [![WPS](https://img.shields.io/badge/requires-WPS%20Office%202019%2B-C00000)]()
 [![PyPI](https://img.shields.io/pypi/v/wps-cli)](https://pypi.org/project/wps-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/wps-cli)](https://pypi.org/project/wps-cli/)
 
-在终端里指挥 WPS Office 干活 — 真格式、真排版、75 条命令。
+在终端里指挥 WPS Office 干活 — 真格式、真排版、76 条命令。
 
 > **不是"所见即所猜"，是所见即所得。** 不模拟文件格式，直接驱动真实的 WPS 引擎。
 
@@ -41,7 +41,7 @@
 |---|---|---|
 | **100% 格式保真** | 不是解析文件，是直接指挥 WPS 引擎干活 | 所见即所得，不是所见即所猜 |
 | **AI Agent 原生支持** | 所有命令支持 `--json` 输出，统一 schema | 天生适配 LLM Agent 和自动化流水线 |
-| **一把梭四件套** | Writer / Calc / Impress / PDF，75 条命令 | 办公自动化一个工具全搞定 |
+| **一把梭四件套** | Writer / Calc / Impress / PDF，76 条命令 | 办公自动化一个工具全搞定 |
 
 ---
 
@@ -197,7 +197,7 @@ JSON 输出统一为：
 
 ## Claude Code Skill
 
-wps-cli 是一个标准的 **Claude Code Skill** — 安装后 Claude Code 可在你需要操作办公文档时自动加载全部 75 条命令的知识。
+wps-cli 是一个标准的 **Claude Code Skill** — 安装后 Claude Code 可在你需要操作办公文档时自动加载全部 76 条命令的知识。
 
 ### 三步安装
 
@@ -223,7 +223,7 @@ wps install all-tools -t claude           # Step 2: 安装 Skill + MCP 到 Claud
 skills/wps-cli/
 ├── SKILL.md                    # 入口：决策树 + 核心概念 + 使用须知
 └── references/
-    ├── commands.md             # 75 条命令完整速查表
+    ├── commands.md             # 76 条命令完整速查表
     ├── patterns.md             # 8 大常见使用模式（模板填充/报表/批量转换…）
     ├── mcp.md                  # MCP 服务器配置与 27 个工具列表
     └── json-schema.md          # JSON 输出格式、错误 Schema、退出码语义

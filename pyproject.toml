@@ -1,6 +1,6 @@
 [project]
 name = "wps-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "WPS Office 全量 CLI 工具 — 通过 COM 自动化驱动 WPS 桌面端，覆盖 Word/Excel/PPT/PDF"
 readme = "README.md"
 license = {text = "MIT"}

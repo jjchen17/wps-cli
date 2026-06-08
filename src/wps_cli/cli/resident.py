@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json as json_mod
+import tempfile
+from pathlib import Path
 from urllib import request
 from urllib.error import URLError
 
@@ -18,8 +20,26 @@ DEFAULT_PORT = 9123
 DEFAULT_HOST = "127.0.0.1"
 
 
+def _read_auth_token() -> str | None:
+    """从临时文件读取驻留服务认证 Token"""
+    try:
+        token_file = Path(tempfile.gettempdir()) / "wps-cli-resident-token"
+        return token_file.read_text().strip() or None
+    except Exception:
+        return None
+
+
 def _api_url(host: str, port: int, endpoint: str) -> str:
     return f"http://{host}:{port}{endpoint}"
+
+
+def _auth_headers() -> dict[str, str]:
+    """构建带认证 Token 的请求头"""
+    headers = {"Content-Type": "application/json"}
+    token = _read_auth_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
 
 
 def _post(endpoint: str, payload: dict, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> dict:
@@ -27,7 +47,7 @@ def _post(endpoint: str, payload: dict, host: str = DEFAULT_HOST, port: int = DE
     req = request.Request(
         _api_url(host, port, endpoint),
         data=json_mod.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=_auth_headers(),
         method="POST",
     )
     try:
@@ -39,8 +59,13 @@ def _post(endpoint: str, payload: dict, host: str = DEFAULT_HOST, port: int = DE
 
 def _get(endpoint: str, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> dict:
     """向驻留服务发送 GET 请求"""
+    req = request.Request(
+        _api_url(host, port, endpoint),
+        headers=_auth_headers(),
+        method="GET",
+    )
     try:
-        with request.urlopen(_api_url(host, port, endpoint), timeout=10) as resp:
+        with request.urlopen(req, timeout=10) as resp:
             return json_mod.loads(resp.read().decode("utf-8"))
     except URLError as e:
         raise ConnectionError(f"无法连接驻留服务 ({host}:{port}): {e.reason}") from e

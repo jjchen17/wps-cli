@@ -1,6 +1,6 @@
 ---
 name: wps-cli
-description: "通过 WPS Office COM 自动化操作 Word/Excel/PPT/PDF 文档。75 条 CLI 命令，100% 格式保真，--json 输出适配 AI Agent。When you need to: create/edit Word documents (.docx), manipulate Excel spreadsheets (.xlsx) with formulas/charts/data-validation, build PowerPoint presentations (.pptx), process PDF files, batch convert office formats, fill Word templates with {{key}} placeholders, validate document formatting, or diagnose WPS COM issues. 当用户需要操作办公文档、填写模板、生成报表、处理PDF、诊断WPS环境时自动触发。"
+description: "通过 WPS Office COM 自动化操作 Word/Excel/PPT/PDF 文档。76 条 CLI 命令，100% 格式保真，--json 输出适配 AI Agent。When you need to: create/edit Word documents (.docx), manipulate Excel spreadsheets (.xlsx) with formulas/charts/data-validation, build PowerPoint presentations (.pptx), process PDF files, batch convert office formats, fill Word templates with {{key}} placeholders, validate document formatting, or diagnose WPS COM issues. 当用户需要操作办公文档、填写模板、生成报表、处理PDF、诊断WPS环境时自动触发。"
 ---
 # 设计参考: iOfficeAI/OfficeCLI (Apache 2.0, https://github.com/iOfficeAI/OfficeCLI)
 
@@ -93,7 +93,7 @@ $Sheet1:A1                        # Excel 风格简写
 
 以下参考文档按需加载，避免占用上下文窗口：
 
-- [commands.md](references/commands.md) — 完整 75 条命令速查表
+- [commands.md](references/commands.md) — 完整 76 条命令速查表
 - [patterns.md](references/patterns.md) — 8 大常见使用模式（模板填充、报表生成、批量转换等）
 - [mcp.md](references/mcp.md) — MCP 服务器配置与 27 个工具列表
 - [json-schema.md](references/json-schema.md) — JSON 输出格式、错误 Schema、退出码语义
