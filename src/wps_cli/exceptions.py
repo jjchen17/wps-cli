@@ -29,16 +29,35 @@ class WpsCliError(Exception):
 
 
 class WpsNotFoundError(WpsCliError):
-    """WPS 未安装或未启动"""
+    """WPS COM 连接失败"""
 
     exit_code = 10
 
-    def __init__(self, component: str = ""):
+    def __init__(
+        self,
+        component: str = "",
+        *,
+        tried_progids: list[str] | None = None,
+        registry_info: str = "",
+        fix_hint: str = "",
+    ):
         name = f" {component}" if component else ""
+        tried_str = ""
+        if tried_progids:
+            tried_str = "\n已尝试的 ProgID: " + ", ".join(tried_progids)
+        reg_str = f"\n\n注册表诊断:\n{registry_info}" if registry_info else ""
+        fix_str = f"\n\n修复建议:\n{fix_hint}" if fix_hint else (
+            "\n\n修复建议:\n"
+            "  1. 运行 'wps doctor --fix' 自动检测并修复 COM 注册\n"
+            "  2. 以管理员身份运行一次 WPS Office（触发自注册）\n"
+            "  3. 检查 Python/pywin32 位数是否与 WPS 位数一致\n"
+            "  4. 如果以上均无效，请重新安装 WPS Office"
+        )
+
         super().__init__(
-            f"无法连接 WPS{name}。请确认 WPS Office 2019+ 已安装。",
-            suggestion="运行 'wps doctor' 诊断环境",
-            context={"component": component} if component else {},
+            f"无法连接 WPS{name}。请确认 WPS Office 已安装。{tried_str}{reg_str}{fix_str}",
+            suggestion="运行 'wps doctor --fix' 诊断并修复环境",
+            context={"component": component, "tried_progids": tried_progids or []},
         )
 
 

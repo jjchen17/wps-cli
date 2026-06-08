@@ -33,7 +33,9 @@ def version() -> None:
 
 
 def _detect_wps_versions() -> dict[str, str]:
-    """探测三个 WPS 组件的版本"""
+    """探测三个 WPS 组件的版本，使用多候选 ProgID 自动回退"""
+    from wps_cli.consts import COM_PROGID_CANDIDATES
+
     result: dict[str, str] = {}
     try:
         import pythoncom
@@ -43,17 +45,33 @@ def _detect_wps_versions() -> dict[str, str]:
     except ImportError:
         return {"Writer": "pywin32 未安装", "Calc": "pywin32 未安装", "Impress": "pywin32 未安装"}
 
-    for name, prog_id in [
-        ("Writer", "KWPS.Application"),
-        ("Calc", "KET.Application"),
-        ("Impress", "KWPP.Application"),
+    for name, prog_ids in [
+        ("Writer", COM_PROGID_CANDIDATES["writer"]),
+        ("Calc", COM_PROGID_CANDIDATES["calc"]),
+        ("Impress", COM_PROGID_CANDIDATES["impress"]),
     ]:
         wps_app = None
-        try:
-            wps_app = win32com.client.Dispatch(prog_id)
-            result[name] = str(wps_app.Version)
-        except com_error:
+        used_prog_id: str | None = None
+        for prog_id in prog_ids:
+            try:
+                wps_app = win32com.client.Dispatch(prog_id)
+                used_prog_id = prog_id
+                break
+            except com_error:
+                continue
+            except Exception:
+                continue
+
+        if wps_app is None:
             result[name] = "未检测到（COM 错误）"
+            continue
+
+        try:
+            ver = str(wps_app.Version)
+            if used_prog_id and used_prog_id != prog_ids[0]:
+                result[name] = f"{ver} (使用 {used_prog_id})"
+            else:
+                result[name] = ver
         except AttributeError:
             result[name] = "已连接但无法读取版本号"
         except Exception as exc:
@@ -67,9 +85,35 @@ def _detect_wps_versions() -> dict[str, str]:
     return result
 
 
+def _check_bitness_mismatch() -> dict:
+    """检测 Python 与 WPS 的位数是否匹配"""
+    from wps_cli.services.com_diagnostics import detect_wps_bitness, detect_wps_install_path
+
+    python_bits = 64 if sys.maxsize > 2**32 else 32
+    result: dict = {
+        "python_bits": python_bits,
+        "wps_bits": None,
+        "mismatch": False,
+        "wps_path": None,
+    }
+
+    wps_path = detect_wps_install_path("writer")
+    result["wps_path"] = wps_path
+    if wps_path:
+        wps_bits = detect_wps_bitness(wps_path)
+        result["wps_bits"] = wps_bits
+        if wps_bits and wps_bits != python_bits:
+            result["mismatch"] = True
+
+    return result
+
+
 def _print_doctor_text() -> None:
     """人类友好的 doctor 输出"""
+    py_bits = 64 if sys.maxsize > 2**32 else 32
+
     typer.echo(f"Python: {sys.version.split()[0]}")
+    typer.echo(f"Python 位数: {py_bits}-bit")
     typer.echo(f"平台: {sys.platform}")
 
     if sys.platform != "win32":
@@ -83,9 +127,70 @@ def _print_doctor_text() -> None:
         raise typer.Exit(1) from exc
     typer.echo("pywin32: 已安装")
 
+    # WPS 安装路径和位数
+    from wps_cli.services.com_diagnostics import detect_wps_bitness, detect_wps_install_path
+
+    wps_path = detect_wps_install_path("writer")
+    if wps_path:
+        typer.echo(f"WPS 安装路径: {wps_path}")
+        wps_bits = detect_wps_bitness(wps_path)
+        if wps_bits:
+            typer.echo(f"WPS 位数: {wps_bits}-bit")
+            if wps_bits != py_bits:
+                typer.echo(
+                    f"⚠ 位数不匹配: Python {py_bits}位 vs WPS {wps_bits}位", err=True,
+                )
+                typer.echo("  请安装匹配位数的 Python 或 pywin32", err=True)
+        else:
+            typer.echo("WPS 位数: 无法检测")
+    else:
+        typer.echo("WPS 安装路径: 未检测到")
+
+    # WPS 版本检测
     for name, ver in _detect_wps_versions().items():
         typer.echo(f"WPS {name}: {ver}")
-    typer.echo("诊断完成")
+
+    # 注册表诊断（检查前2个候选 ProgID）
+    from wps_cli.consts import COM_PROGID_CANDIDATES
+    from wps_cli.services.com_diagnostics import check_progid_registry
+
+    typer.echo("")
+    typer.echo("注册表诊断 (前2个候选 ProgID):")
+    for _app_name, app_type in [("Writer", "writer"), ("Calc", "calc"), ("Impress", "impress")]:
+        candidates = COM_PROGID_CANDIDATES.get(app_type, [])
+        for prog_id in candidates[:2]:
+            results = check_progid_registry(prog_id)
+            for r in results:
+                if r.error:
+                    typer.echo(f"  {prog_id}: {r.error}")
+                elif r.local_server_exists:
+                    typer.echo(f"  {prog_id}: OK (CLSID {r.clsid})")
+                else:
+                    typer.echo(f"  {prog_id}: LocalServer32 路径不存在 ({r.local_server32})")
+
+    # ksomgr 检测
+    from wps_cli.services.com_diagnostics import find_ksomgr
+
+    ksomgr = find_ksomgr()
+    if ksomgr:
+        typer.echo(f"\n注册修复工具: {ksomgr}")
+        typer.echo("  运行 'wps doctor --fix' 自动修复 COM 注册问题（需管理员权限）")
+    else:
+        typer.echo("\n未找到 ksomgr.exe，无法自动修复")
+
+    typer.echo("\n诊断完成")
+
+
+def _run_doctor_fix() -> None:
+    """自动检测并修复 COM 注册问题"""
+    from wps_cli.services.com_diagnostics import attempt_com_fix
+
+    typer.echo("正在诊断并修复 COM 注册问题...\n")
+    success, logs = attempt_com_fix()
+    for line in logs:
+        typer.echo(line)
+    if success:
+        typer.echo("\n修复成功！请重新运行 'wps doctor' 验证。")
 
 
 def _print_doctor_report() -> None:
@@ -132,6 +237,29 @@ def _print_doctor_report() -> None:
     else:
         lines.append("- WPS: 非 Windows 平台或未检测")
 
+    # COM 注册表状态摘要
+    if plat == "win32":
+        from wps_cli.consts import COM_PROGID_CANDIDATES
+        from wps_cli.services.com_diagnostics import check_progid_registry
+
+        lines.append("")
+        lines.append("### COM Registry Status")
+        lines.append("")
+        for app_name, app_type in [("Writer", "writer"), ("Calc", "calc"), ("Impress", "impress")]:
+            candidates = COM_PROGID_CANDIDATES.get(app_type, [])
+            has_ok = False
+            for prog_id in candidates:
+                results = check_progid_registry(prog_id)
+                for r in results:
+                    if r.local_server_exists and not r.error:
+                        lines.append(f"- {app_name}: {prog_id} OK (CLSID `{r.clsid}`)")
+                        has_ok = True
+                        break
+                if has_ok:
+                    break
+            if not has_ok:
+                lines.append(f"- {app_name}: 无可用 ProgID")
+
     lines.extend(
         [
             "",
@@ -152,15 +280,34 @@ def doctor(
         "--report",
         help="输出可粘贴到 GitHub Issue 的脱敏 markdown 报告",
     ),
+    fix: bool = typer.Option(
+        False,
+        "--fix",
+        help="自动检测并修复 COM 注册问题（需管理员权限）",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="输出详细诊断信息",
+    ),
 ) -> None:
     """诊断环境
 
     默认人类友好输出。``--report`` 输出脱敏 markdown，便于反馈 bug。
+    ``--fix`` 自动修复 COM 注册问题。``--verbose`` 输出详细诊断。
     """
-    if report:
+    if fix:
+        _run_doctor_fix()
+    elif report:
         _print_doctor_report()
     else:
         _print_doctor_text()
+        if verbose:
+            bitness = _check_bitness_mismatch()
+            typer.echo(f"\n详细诊断: Python {bitness['python_bits']}位"
+                       f" | WPS {bitness.get('wps_bits', '?')}位"
+                       f" | 不匹配: {bitness['mismatch']}")
 
 
 if __name__ == "__main__":

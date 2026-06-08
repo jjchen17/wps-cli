@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Fixed — Issue #8: WPS 12.x COM 注册缺失修复
+- **多 ProgID 回退**: `WpsComBackend.connect()` 依次探测 K 前缀/非 K 前缀/Kingsoft 全限定名 3 个候选 ProgID，兼容 WPS 12.x 不再注册 `KWPS.Application` 的情况。
+- **注册表诊断**: 新增 `services/com_diagnostics.py`，读取 HKCR 注册表检查 ProgID→CLSID→LocalServer32 完整链，同时检测 32/64 位视图和 WOW6432Node。
+- **位数匹配检测**: 通过 PE 头解析检测 WPS 可执行文件位数，与 Python 位数对比，发现不匹配时显式警告。
+- **`wps doctor --fix`**: 自动查找 ksomgr.exe/ksomisc.exe/ksolaunch.exe 并执行 `-regserver` 修复 COM 注册。
+- **`wps doctor --verbose`**: 输出完整注册表诊断报告。
+- **增强错误消息**: `WpsNotFoundError` 现在包含已尝试的 ProgID 列表、注册表诊断结果、结构化修复建议。
+- 新增 23 个 COM 诊断单元测试。
+
 ### Added — 🚀 全面升级（借鉴 OfficeCLI 设计理念）
 - **MCP 服务器**：内置 JSON-RPC 2.0 over stdio MCP 服务器，零外部依赖，暴露 26 个 tool（Writer 8 + Calc 7 + Impress 5 + PDF 5 + Export 1）。
   - CLI 命令：`wps mcp serve|install|status`，支持一键注册到 Claude Code / Cursor / VS Code。

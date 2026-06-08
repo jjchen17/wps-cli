@@ -169,3 +169,24 @@ IMPRESS_INPUT_EXTENSIONS: frozenset[str] = frozenset(
     {".ppt", ".pptx", ".pps", ".ppsx", ".dps", ".dpt", ".pot", ".potx"}
 )
 PDF_INPUT_EXTENSIONS: frozenset[str] = frozenset({".pdf"})
+
+# ── COM 诊断与多版本 ProgID ─────────────────────────────────────
+# 各应用类型的候选 ProgID 列表（按优先级排列）
+# WPS 12.x 可能不再注册 K 前缀 ProgID，需回退到非 K 前缀
+COM_PROGID_CANDIDATES: dict[str, list[str]] = {
+    "writer": [
+        "KWPS.Application",
+        "WPS.Application",
+        "Kingsoft.WPS.Application",
+    ],
+    "calc": [
+        "KET.Application",
+        "ET.Application",
+        "Kingsoft.ET.Application",
+    ],
+    "impress": [
+        "KWPP.Application",
+        "WPP.Application",
+        "Kingsoft.WPP.Application",
+    ],
+}
